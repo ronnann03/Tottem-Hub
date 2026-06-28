@@ -654,13 +654,13 @@ Implementar las 3 pantallas de auth: login, registro y verificación de email. F
 - `frontend/lib/api.ts`
 
 **Criterios de aceptación:**
-- [ ] Login: credenciales inválidas → "Email o contraseña incorrectos"
-- [ ] Login: cuenta no verificada → "Verifica tu email primero"
-- [ ] Login exitoso → redirect al portal según rol
-- [ ] Registro: email duplicado → error claro
-- [ ] Registro exitoso → "Revisa tu email para activar tu cuenta"
-- [ ] Verificación: link expirado → error claro
-- [ ] Sin errores TypeScript ni lint
+- [x] Login: credenciales inválidas → "Email o contraseña incorrectos"
+- [x] Login: cuenta no verificada → "Verifica tu email primero"
+- [x] Login exitoso → redirect al portal según rol
+- [x] Registro: email duplicado → error claro
+- [x] Registro exitoso → "Revisa tu email para activar tu cuenta"
+- [x] Verificación: link expirado → error claro
+- [x] Sin errores TypeScript ni lint
 
 ---
 

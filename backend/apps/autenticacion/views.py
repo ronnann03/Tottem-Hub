@@ -84,7 +84,7 @@ class RegistroAPIView(APIView):
     def _enviar_verificacion(self, usuario) -> None:
         token = generar_token_verificacion(usuario)
         frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:3000")
-        url_verificacion = f"{frontend_url}/verificar-email?token={token}"
+        url_verificacion = f"{frontend_url}/verificar?token={token}"
 
         html = render_to_string(
             "emails/verificacion_email.html",
