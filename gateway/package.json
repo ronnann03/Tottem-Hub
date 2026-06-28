@@ -1,0 +1,19 @@
+{
+  "name": "tottem-hub-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "description": "API Gateway — Node.js puro (sin Express, Fastify, Koa ni Hapi)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test tests/router.test.js tests/server.test.js tests/cors.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "redis": "^4.7.0",
+    "dotenv": "^16.0.0"
+  }
+}

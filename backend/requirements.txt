@@ -1,0 +1,41 @@
+# Tottem Hub — Backend Dependencies
+# Instalación: pip install -r requirements.txt
+# Las dependencias se activan a medida que se implementan los módulos.
+
+# --- Web framework ---
+Django>=4.2,<5.0
+djangorestframework>=3.14.0
+Pillow>=10.3.0                   # Requerido por ImageField (Agencia.logo, Viaje.imagen, etc.)
+
+# --- Autenticación JWT ---
+djangorestframework-simplejwt>=5.3.0
+
+# --- Base de datos ---
+psycopg2-binary>=2.9.0
+dj-database-url>=2.1.0          # Parsea DATABASE_URL en formato PostgreSQL
+
+# --- CORS ---
+django-cors-headers>=4.3.0
+
+# --- Variables de entorno ---
+python-decouple>=3.8             # Lee .env y variables de sistema
+
+# --- Cache y broker (Redis) ---
+redis>=5.0.0
+django-redis>=5.4.0
+
+# --- Tareas asíncronas ---
+celery>=5.3.0
+django-celery-beat>=2.6.0
+
+# --- Almacenamiento (S3/GCS) ---
+django-storages>=1.14.0
+boto3>=1.34.0                    # S3 — backend por defecto
+# google-cloud-storage>=2.16.0  # GCS — descomentar si se usa GCS en lugar de S3
+
+# --- Calidad de código ---
+flake8>=7.0.0
+
+# --- Exportaciones (Fase F — descomentar cuando aplique) ---
+# openpyxl>=3.1.0
+# weasyprint>=60.0

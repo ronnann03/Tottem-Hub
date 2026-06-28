@@ -1,0 +1,16 @@
+[
+  {
+    "model": "agencias.agencia",
+    "pk": "00000000-0000-0000-0000-000000000001",
+    "fields": {
+      "nombre": "Totem Travel",
+      "logo": null,
+      "email_contacto": "contacto@totemtravel.pe",
+      "telefono": "+51 1 234 5678",
+      "licencia_agencia": "",
+      "slug": "totem",
+      "activa": true,
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  }
+]
