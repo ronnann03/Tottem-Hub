@@ -29,7 +29,7 @@ urlpatterns = [
 
     # API v1 — los namespaces de cada app se registran aquí a medida que se implementan:
     path("api/v1/auth/", include("apps.autenticacion.urls")),   # TASK-008
-    # TASK-025+: path("api/v1/viajes/", include("apps.viajes.urls")),
+    path("api/v1/viajes/", include("apps.viajes.urls")),
     # TASK-033+: path("api/v1/inscripciones/", include("apps.inscripciones.urls")),
     # TASK-036+: path("api/v1/pagos/", include("apps.pagos.urls")),
     # TASK-040+: path("api/v1/documentos/", include("apps.documentos.urls")),

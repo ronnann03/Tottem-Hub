@@ -1,9 +1,14 @@
-from django.test import TestCase
-from django.db import transaction
-from django.utils import timezone
 from datetime import timedelta
-from apps.viajes.models import Viaje, Itinerario, EstadoViaje
+from django.db import transaction
+from django.test import TestCase
+from django.urls import reverse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.test import APITestCase
+
 from apps.agencias.models import Agencia
+from apps.autenticacion.models import RolUsuario, Usuario
+from apps.viajes.models import EstadoViaje, Itinerario, Viaje
 
 
 class ViajeSignalTests(TestCase):
@@ -30,49 +35,156 @@ class ViajeSignalTests(TestCase):
         )
 
     def test_crear_viaje_crea_itinerario(self):
-        # 1. Crear Viaje -> existe Itinerario
-        # 5. La señal funciona desde ORM puro
         viaje = self.create_viaje()
         self.assertTrue(Itinerario.objects.filter(viaje=viaje).exists())
 
     def test_solo_un_itinerario_por_viaje(self):
-        # 2. Crear Viaje -> solo un Itinerario
         viaje = self.create_viaje()
         count = Itinerario.objects.filter(viaje=viaje).count()
         self.assertEqual(count, 1)
 
     def test_guardar_nuevamente_no_crea_duplicado(self):
-        # 3. Guardar nuevamente el Viaje -> no crea otro Itinerario
         viaje = self.create_viaje()
         itinerario_inicial_id = viaje.itinerario.id
-
         viaje.nombre = "Viaje Actualizado"
         viaje.save()
-
         count = Itinerario.objects.filter(viaje=viaje).count()
         self.assertEqual(count, 1)
         self.assertEqual(viaje.itinerario.id, itinerario_inicial_id)
 
     def test_crear_multiples_viajes(self):
-        # 4. Crear múltiples Viajes -> cada uno obtiene un Itinerario
         viajes = [self.create_viaje(str(i)) for i in range(5)]
-
         for viaje in viajes:
             self.assertEqual(Itinerario.objects.filter(viaje=viaje).count(), 1)
-
         self.assertEqual(Itinerario.objects.count(), 5)
 
     def test_signal_dentro_de_transaccion(self):
-        # 6. La señal funciona dentro de transacciones
         with transaction.atomic():
             viaje = self.create_viaje("transaccion")
-
         self.assertTrue(Itinerario.objects.filter(viaje=viaje).exists())
 
     def test_no_consultas_innecesarias(self):
-        # 7. No aparecen consultas innecesarias
         viaje = self.create_viaje("q1")
-
         with self.assertNumQueries(1):
             viaje.nombre = "Modificado"
             viaje.save(update_fields=['nombre'])
+
+
+class ViajeEndpointTests(APITestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create(
+            nombre="Agencia 1", slug="ag1", email_contacto="a@a.com"
+        )
+        self.agencia2 = Agencia.objects.create(
+            nombre="Agencia 2", slug="ag2", email_contacto="b@b.com"
+        )
+        self.agente = Usuario.objects.create_user(
+            email="agente@a.com", password="pwd", rol=RolUsuario.AGENTE,
+            agencia=self.agencia, email_verificado=True
+        )
+        self.agente2 = Usuario.objects.create_user(
+            email="agente2@a.com", password="pwd", rol=RolUsuario.AGENTE,
+            agencia=self.agencia2, email_verificado=True
+        )
+        self.padre = Usuario.objects.create_user(
+            email="padre@a.com", password="pwd", rol=RolUsuario.PADRE,
+            email_verificado=True
+        )
+        self.alumno = Usuario.objects.create_user(
+            email="alumno@a.com", password="pwd", rol=RolUsuario.ALUMNO,
+            email_verificado=True
+        )
+        self.url = reverse('viaje-list-create')
+        self.today = timezone.now().date()
+        self.tomorrow = self.today + timedelta(days=1)
+
+    def test_get_autenticado_agente(self):
+        self.client.force_authenticate(user=self.agente)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_get_devuelve_solo_su_agencia_y_ordenado(self):
+        Viaje.objects.create(
+            agencia=self.agencia, nombre="V1", destino="D1",
+            fecha_salida=self.today + timedelta(days=2),
+            fecha_regreso=self.tomorrow + timedelta(days=2),
+            cupo_maximo=10, precio_total=100
+        )
+        Viaje.objects.create(
+            agencia=self.agencia, nombre="V2", destino="D2",
+            fecha_salida=self.today, fecha_regreso=self.tomorrow,
+            cupo_maximo=10, precio_total=100
+        )
+        Viaje.objects.create(
+            agencia=self.agencia2, nombre="V3", destino="D3",
+            fecha_salida=self.today, fecha_regreso=self.tomorrow,
+            cupo_maximo=10, precio_total=100
+        )
+        self.client.force_authenticate(user=self.agente)
+        response = self.client.get(self.url)
+        results = response.data.get('results', response.data)
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]['nombre'], "V2")
+        self.assertEqual(results[1]['nombre'], "V1")
+
+    def test_get_padre_y_alumno_403(self):
+        self.client.force_authenticate(user=self.padre)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(user=self.alumno)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_get_sin_login_401(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_valido_201_y_crea_itinerario(self):
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "nombre": "Nuevo Viaje",
+            "destino": "Playa",
+            "fecha_salida": self.today.isoformat(),
+            "fecha_regreso": self.tomorrow.isoformat(),
+            "cupo_maximo": 50,
+            "precio_total": "500.00"
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        viaje = Viaje.objects.get(id=response.data['id'])
+        self.assertEqual(viaje.nombre, "Nuevo Viaje")
+        self.assertEqual(viaje.agencia, self.agencia)
+        self.assertTrue(Itinerario.objects.filter(viaje=viaje).exists())
+
+    def test_post_ignora_agencia_e_id_cliente(self):
+        self.client.force_authenticate(user=self.agente)
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        data = {
+            "id": fake_id,
+            "agencia": self.agencia2.id,
+            "nombre": "Trampa ID",
+            "destino": "IDlandia",
+            "fecha_salida": self.today.isoformat(),
+            "fecha_regreso": self.tomorrow.isoformat(),
+            "cupo_maximo": 10,
+            "precio_total": "100.00"
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(str(response.data['id']), fake_id)
+        viaje = Viaje.objects.get(id=response.data['id'])
+        self.assertEqual(viaje.agencia, self.agencia)
+
+    def test_post_valida_fechas(self):
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "nombre": "Fechas Malas",
+            "destino": "Pasado",
+            "fecha_salida": self.tomorrow.isoformat(),
+            "fecha_regreso": self.today.isoformat(),
+            "cupo_maximo": 10,
+            "precio_total": "100.00"
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('fecha_regreso', response.data)
