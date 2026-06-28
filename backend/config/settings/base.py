@@ -323,16 +323,14 @@ CELERY_IMPORTS: list[str] = []  # Se pobla en TASK-048+
 
 _default_storage = config("DEFAULT_FILE_STORAGE", default="")
 
-if _default_storage:
-    DEFAULT_FILE_STORAGE = _default_storage
-    STORAGES = {
-        "default": {
-            "BACKEND": _default_storage,
-        },
-        "staticfiles": {
-            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
-        },
-    }
+STORAGES = {
+    "default": {
+        "BACKEND": _default_storage if _default_storage else "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
 
 AWS_STORAGE_BUCKET_NAME = config("AWS_STORAGE_BUCKET_NAME", default="")
 AWS_ACCESS_KEY_ID = config("AWS_ACCESS_KEY_ID", default="")
