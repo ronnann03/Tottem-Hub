@@ -738,7 +738,7 @@ Crear los modelos `Grupo`, `Hotel` y `DocumentoRequerido` vinculados a `Viaje`.
 
 ### TASK-024
 **Nombre:** Signal Viaje.CREATE → crea Itinerario vacío  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 30min  
 **Dependencias:** TASK-022
