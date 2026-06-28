@@ -1,16 +1,16 @@
 from django.db import transaction, IntegrityError
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, mixins, status
-from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.exceptions import ValidationError as DRFValidationError, NotFound
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.http import Http404
-from .models import Viaje, PlanPago, Alumno, Itinerario, EtapaItinerario, Actividad, Hotel, Grupo
+from .models import Viaje, PlanPago, Alumno, Itinerario, EtapaItinerario, Actividad, Hotel, Grupo, DocumentoRequerido
 from .serializers import (
     ViajeSerializer, PlanPagoSerializer, AlumnoSerializer,
     EtapaItinerarioSerializer, ActividadSerializer,
     ItinerarioSerializer, ReordenamientoActividadSerializer,
-    HotelSerializer, GrupoSerializer, AsignarAlumnosSerializer,
+    HotelSerializer, GrupoSerializer, AsignarAlumnosSerializer, DocumentoRequeridoSerializer,
 )
 from .permissions import EsAgente
 
@@ -432,3 +432,59 @@ class GrupoAsignarAlumnosView(generics.GenericAPIView):
             {"asignados": len(alumnos), "total_en_grupo": grupo.alumnos.count()},
             status=status.HTTP_200_OK,
         )
+
+
+# ─── Vistas de documentos requeridos (TASK-030) ───────────────────────────────
+
+def _get_documento_o_404(documento_id, viaje):
+    try:
+        return DocumentoRequerido.objects.get(id=documento_id, viaje=viaje)
+    except DocumentoRequerido.DoesNotExist:
+        raise NotFound("Documento requerido no encontrado.")
+
+
+class DocumentoRequeridoListCreateView(generics.GenericAPIView):
+    serializer_class = DocumentoRequeridoSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), EsAgente()]
+
+    def get(self, request, viaje_id):
+        viaje = _get_viaje_o_404(viaje_id, request.user.agencia)
+        return Response(self.get_serializer(viaje.documentos_requeridos.all(), many=True).data)
+
+    def post(self, request, viaje_id):
+        viaje = _get_viaje_o_404(viaje_id, request.user.agencia)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(viaje=viaje)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DocumentoRequeridoRetrieveUpdateDestroyView(generics.GenericAPIView):
+    serializer_class = DocumentoRequeridoSerializer
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), EsAgente()]
+
+    def _get_documento(self):
+        viaje = _get_viaje_o_404(self.kwargs['viaje_id'], self.request.user.agencia)
+        return _get_documento_o_404(self.kwargs['documento_id'], viaje)
+
+    def get(self, request, viaje_id, documento_id):
+        return Response(self.get_serializer(self._get_documento()).data)
+
+    def patch(self, request, viaje_id, documento_id):
+        documento = self._get_documento()
+        serializer = self.get_serializer(documento, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, viaje_id, documento_id):
+        self._get_documento().delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

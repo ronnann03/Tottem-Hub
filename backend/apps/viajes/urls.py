@@ -1,5 +1,7 @@
 from django.urls import path
 from .views import (
+    DocumentoRequeridoListCreateView,
+    DocumentoRequeridoRetrieveUpdateDestroyView,
     ViajeListCreateView,
     ViajeRetrieveUpdateView,
     PlanPagoRetrieveUpdateCreateView,
@@ -35,6 +37,9 @@ urlpatterns = [
     path('<uuid:viaje_id>/hoteles/', HotelListCreateView.as_view(), name='viaje-hoteles'),
     path('<uuid:viaje_id>/hoteles/<uuid:hotel_id>/', HotelRetrieveUpdateDestroyView.as_view(), name='viaje-hotel-detail'),  # noqa: E501
 
+    # Documentos requeridos (TASK-030)
+    path('<uuid:viaje_id>/documentos-requeridos/', DocumentoRequeridoListCreateView.as_view(), name='viaje-documentos-requeridos'),  # noqa: E501
+    path('<uuid:viaje_id>/documentos-requeridos/<uuid:documento_id>/', DocumentoRequeridoRetrieveUpdateDestroyView.as_view(), name='viaje-documento-requerido-detail'),  # noqa: E501
     # Grupos y asignación de alumnos (TASK-029)
     path('<uuid:viaje_id>/grupos/', GrupoListCreateView.as_view(), name='viaje-grupos'),
     path('<uuid:viaje_id>/grupos/<uuid:grupo_id>/', GrupoRetrieveUpdateDestroyView.as_view(), name='viaje-grupo-detail'),  # noqa: E501

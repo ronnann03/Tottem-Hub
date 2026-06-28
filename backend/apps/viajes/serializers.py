@@ -1,7 +1,7 @@
 from django.db import transaction, IntegrityError
 from rest_framework import serializers
 from .models import (
-    Viaje, Cuota, PlanPago, Alumno, Itinerario, EtapaItinerario, Actividad, Hotel, Grupo
+    Viaje, Cuota, PlanPago, Alumno, Itinerario, EtapaItinerario, Actividad, Hotel, Grupo, DocumentoRequerido
 )
 from datetime import date
 
@@ -254,3 +254,13 @@ class AsignarAlumnosSerializer(serializers.Serializer):
         if len(ids) != len(set(ids)):
             raise serializers.ValidationError("Se enviaron IDs de alumnos duplicados.")
         return value
+
+
+class DocumentoRequeridoSerializer(serializers.ModelSerializer):
+    formatos_lista = serializers.ReadOnlyField()
+
+    class Meta:
+        model = DocumentoRequerido
+        fields = ['id', 'nombre', 'descripcion', 'obligatorio',
+                  'formatos_permitidos', 'formatos_lista']
+        read_only_fields = ['id']
