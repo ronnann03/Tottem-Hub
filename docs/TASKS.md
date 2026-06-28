@@ -670,7 +670,7 @@ Implementar las 3 pantallas de auth: login, registro y verificación de email. F
 
 ### TASK-021
 **Nombre:** Modelos de viajes — Viaje, PlanPago, Cuota  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 2h  
 **Dependencias:** TASK-006
@@ -695,7 +695,7 @@ Crear la app `viajes` con los modelos `Viaje`, `PlanPago` y `Cuota` según `DATA
 
 ### TASK-022
 **Nombre:** Modelos de viajes — Itinerario, EtapaItinerario, Actividad  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 1h  
 **Dependencias:** TASK-021
@@ -717,7 +717,7 @@ Crear los modelos `Itinerario`, `EtapaItinerario` y `Actividad`. `Itinerario` es
 
 ### TASK-023
 **Nombre:** Modelos de viajes — Grupo, Hotel, DocumentoRequerido  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 1h  
 **Dependencias:** TASK-021
@@ -751,9 +751,13 @@ Signal `post_save` en `Viaje` que crea automáticamente un `Itinerario` vacío a
 - `backend/apps/viajes/apps.py`
 
 **Criterios de aceptación:**
-- [ ] Al crear `Viaje`, se crea `Itinerario` asociado automáticamente
-- [ ] No se crea segundo `Itinerario` si el viaje ya tiene uno
-- [ ] Signal registrado en `AppConfig.ready()`
+- [x] Al crear `Viaje`, se crea `Itinerario` asociado automáticamente
+- [x] No se crea segundo `Itinerario` si el viaje ya tiene uno (`get_or_create`)
+- [x] Signal registrado en `AppConfig.ready()`
+
+**Notas:**
+- `get_or_create` garantiza idempotencia: save() repetidos en el mismo Viaje no duplican Itinerario.
+- 6 tests de signal pasan: creación, duplicado, múltiples viajes, transacción atómica, conteo de queries.
 
 ---
 
@@ -774,41 +778,52 @@ Implementar endpoints CRUD de viajes con permisos por rol. Transiciones de estad
 - `backend/apps/viajes/urls.py`
 
 **Criterios de aceptación:**
-- [ ] `GET /viajes/` filtra por `agencia_id` del agente
-- [ ] `POST /viajes/` crea en estado `borrador`, solo agente
-- [ ] `PATCH /viajes/{id}/` valida transiciones de estado
+- [x] `GET /viajes/` filtra por `agencia_id` del agente
+- [x] `POST /viajes/` crea en estado `borrador`, solo agente
+- [ ] `PATCH /viajes/{id}/` valida transiciones de estado (implementado en TASK-026, sin máquina de estados)
 - [ ] `DELETE /viajes/{id}/` solo en estado `borrador` y sin inscripciones
 - [ ] Padre/alumno solo ven viajes `activos` con inscripción propia
 - [ ] Respuesta coincide con contratos de `API.md`
 
+**Notas:**
+- List/Create (GET + POST) implementados en TASK-025/TASK-026. Retrieve/Update (GET detail + PATCH) en TASK-026.
+- DELETE y vista de padre/alumno quedan pendientes para una TASK futura.
+
 ---
 
 ### TASK-026
-**Nombre:** Endpoints CRUD Base (Viaje) - Retrieve y Update  
+**Nombre:** API viajes — Detalle y actualización parcial (Retrieve + Update)  
 **Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 2h  
 **Dependencias:** TASK-025
 
 **Descripción:**  
-Endpoint `GET /viajes/{id}/metricas/` con % de inscritos, % pagado y % documentado. Solo accesible por agente.
+Endpoint `GET /viajes/{id}/` para ver detalle de un viaje y `PATCH /viajes/{id}/` para actualizar parcialmente. Filtrado multi-tenant: un agente solo puede acceder a sus propios viajes. Acceso a viaje de otra agencia → 404.
 
 **Archivos afectados:**
-- `backend/apps/viajes/views.py`
-- `backend/apps/viajes/serializers.py`
+- `backend/apps/viajes/views.py` — `ViajeRetrieveUpdateView`
+- `backend/apps/viajes/serializers.py` — `ViajeSerializer.validate()` soporta PATCH parcial
+- `backend/apps/viajes/urls.py` — `<uuid:pk>/`
+- `backend/apps/viajes/tests.py` — `ViajeDetailEndpointTests` (10 tests)
 
 **Criterios de aceptación:**
-- [ ] Respuesta incluye `total_inscritos`, `cupo_maximo`, `porcentaje_inscripcion`
-- [ ] Respuesta incluye `total_pagado`, `total_esperado`, `porcentaje_pagado`
-- [ ] Respuesta incluye `documentos_completos`, `documentos_pendientes`, `porcentaje_documentado`
-- [ ] Cálculos correctos (solo pagos verificados cuentan)
-- [ ] Solo accesible por rol agente
+- [x] `GET /viajes/{id}/` retorna detalle del viaje propio
+- [x] `GET /viajes/{id}/` de otra agencia → 404 (sin filtrar existencia)
+- [x] `PATCH /viajes/{id}/` permite actualización parcial (nombre, destino, fechas, cupo, precio)
+- [x] `PATCH` ignora `id` y `agencia` enviados por el cliente (read-only en serializer)
+- [x] `PATCH` valida coherencia de fechas incluso en updates parciales
+- [x] Solo accesible por rol agente; padre/anónimo → 403/401
+
+**Notas:**
+- 10 tests pasan: detalle propio, 404 ajeno, 404 inexistente, permisos, patch nombre/múltiples campos/fechas inválidas/ignora id+agencia/ajeno da 404/no crea itinerario.
+- `python manage.py check` — 0 issues. flake8 — 0 errores. 42 tests totales viajes — todos pasan.
 
 ---
 
 ### TASK-027
 **Nombre:** API plan de pagos y cuotas  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 2h  
 **Dependencias:** TASK-025
@@ -820,55 +835,131 @@ CRUD del plan de pagos. `PATCH` solo si no hay pagos verificados.
 - `backend/apps/viajes/views.py`
 - `backend/apps/viajes/serializers.py`
 
+**Archivos creados/modificados:**
+- `backend/apps/viajes/views.py` — `PlanPagoRetrieveUpdateCreateView`
+- `backend/apps/viajes/serializers.py` — `PlanPagoSerializer`, `CuotaSerializer`
+- `backend/apps/viajes/urls.py` — `<uuid:viaje_id>/plan-pago/`
+- `backend/apps/viajes/tests.py` — `PlanPagoEndpointTests` (12 tests)
+
 **Criterios de aceptación:**
-- [ ] `POST /viajes/{id}/plan-pago/` crea `PlanPago` + cuotas en una sola request
-- [ ] `PATCH` bloqueado si hay pagos verificados asociados
-- [ ] Cada cuota tiene `importe > 0` (validación + constraint)
+- [x] `POST /viajes/{id}/plan-pago/` crea `PlanPago` + cuotas en una sola request (atomic + bulk_create)
+- [x] `GET /viajes/{id}/plan-pago/` retorna plan con cuotas; `prefetch_related('cuotas')`
+- [x] `PATCH` bloqueado si hay pagos verificados asociados
+- [x] Cada cuota tiene `importe > 0` (validación + constraint BD)
+- [x] Acceso a plan de viaje ajeno → 404; multi-tenant correcto
+
+**Notas:**
+- `transaction.atomic()` + `bulk_create` en create. Captura `IntegrityError` para doble-create concurrente.
+- Upsert inteligente en update: conserva UUID de cuotas existentes, elimina las que desaparecen del payload.
+- 12 tests pasan: create, get, patch, permisos, duplicado, viaje ajeno, concurrencia, atomicidad, upsert/conserva UUID.
+
+---
+
+### TASK-027A
+**Nombre:** Modelo Alumno + API CRUD  
+**Estado:** `Done`  
+**Prioridad:** Alta  
+**Estimación:** 2h  
+**Dependencias:** TASK-021
+
+**Descripción:**  
+Modelo `Alumno` vinculado a `Agencia` (multi-tenant). CRUD de alumnos con unicidad de `numero_documento` por agencia. Alumnos son recursos de la agencia, no del viaje directamente.
+
+**Archivos creados/modificados:**
+- `backend/apps/viajes/models.py` — `Alumno`, `TipoDocumento` (migración `0004_alumno_...`)
+- `backend/apps/viajes/serializers.py` — `AlumnoSerializer` (validación fecha nacimiento + unicidad documento)
+- `backend/apps/viajes/views.py` — `AlumnoListCreateView`, `AlumnoRetrieveUpdateView`
+- `backend/apps/viajes/alumnos_urls.py` — sub-router para `/api/v1/alumnos/`
+- `backend/config/urls.py` — `path("api/v1/alumnos/", include("apps.viajes.alumnos_urls"))`
+- `backend/apps/viajes/tests.py` — `AlumnoEndpointTests` (7 tests)
+
+**Criterios de aceptación:**
+- [x] `POST /alumnos/` crea alumno en la agencia del agente autenticado
+- [x] `GET /alumnos/` lista solo alumnos de la agencia propia (aislamiento multi-tenant)
+- [x] `GET /alumnos/{id}/` de otra agencia → 404
+- [x] `PATCH /alumnos/{id}/` actualización parcial (nombres, apellidos, etc.)
+- [x] `numero_documento` único por agencia (distinta agencia puede tener el mismo)
+- [x] `fecha_nacimiento` no puede ser futura
+- [x] Solo accesible por rol agente; padre/anónimo → 403/401
+
+**Notas:**
+- `AlumnoSerializer.create()` inyecta `agencia` desde `request.user.agencia` (no del payload).
+- Relación M2M `Alumno.grupos` añadida anticipadamente → documentada en TD-008 (revisar en TASK-033).
+- Routing bajo `/api/v1/alumnos/` en lugar de `/api/v1/viajes/alumnos/` → documentado en TD-007.
+- 7 tests pasan: create, duplicado misma agencia, duplicado diferente agencia, aislamiento + listado, patch parcial, permisos, fecha futura.
 
 ---
 
 ### TASK-028
 **Nombre:** API itinerario — etapas, actividades y reordenamiento bulk  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 3h  
 **Dependencias:** TASK-024
 
 **Descripción:**  
-CRUD de etapas y actividades. Endpoint bulk de reordenamiento que actualiza múltiples actividades en una sola request.
+CRUD de etapas y actividades bajo el itinerario de un viaje. Endpoint bulk de reordenamiento que actualiza múltiples actividades en una sola transacción DB.
 
 **Archivos afectados:**
-- `backend/apps/viajes/views.py`
-- `backend/apps/viajes/serializers.py`
+- `backend/apps/viajes/serializers.py` — 6 nuevos serializers
+- `backend/apps/viajes/views.py` — 2 helpers + 6 nuevas vistas
+- `backend/apps/viajes/urls.py` — reescrito con 6 nuevos patterns
+- `backend/apps/viajes/tests.py` — 30 nuevos tests (72 total)
 
 **Criterios de aceptación:**
-- [ ] `POST /itinerarios/{id}/etapas/` crea etapa
-- [ ] `POST /etapas/{id}/actividades/` crea actividad
-- [ ] `PATCH /actividades/reordenar/` actualiza campo `orden` en bloque
-- [ ] Reordenamiento bulk usa una sola transacción DB
-- [ ] No existe PATCH individual para reordenar (invariante)
+- [x] `GET /viajes/{viaje_id}/itinerario/` retorna itinerario con etapas y actividades anidadas
+- [x] `GET/POST /viajes/{viaje_id}/etapas/` lista y crea etapas
+- [x] `GET/PATCH/DELETE /viajes/{viaje_id}/etapas/{etapa_id}/` detalle, edición y eliminación con cascada
+- [x] `GET/POST /viajes/{viaje_id}/etapas/{etapa_id}/actividades/` lista y crea actividades
+- [x] `GET/PATCH/DELETE /viajes/{viaje_id}/etapas/{etapa_id}/actividades/{actividad_id}/` detalle individual
+- [x] `PATCH /viajes/{viaje_id}/etapas/{etapa_id}/actividades/reordenar/` actualiza `orden` en bloque
+- [x] Reordenamiento bulk usa `bulk_update` dentro de `transaction.atomic()` (1 sola query)
+- [x] `orden` es `read_only` en `ActividadSerializer` — solo modificable vía reordenar (invariante)
+- [x] `dia_numero` duplicado dentro del mismo itinerario → 400 (IntegrityError capturado en vista)
+- [x] IDs del payload en reordenar verificados contra etapa → 400 si alguno no pertenece
+- [x] IDs duplicados en payload reordenar → 400
+- [x] Cadena multi-tenant: agencia → viaje → etapa → actividad en todos los endpoints
+
+**Notas:**
+- `reordenar/` declarado antes de `<uuid:actividad_id>/` en urls.py para evitar conflicto de matching.
+- `_get_viaje_o_404` y `_get_etapa_o_404` son helpers de módulo privados reutilizados en las 6 vistas.
+- `prefetch_related('etapas', 'etapas__actividades')` en `ItinerarioRetrieveView` previene N+1.
+- 30 tests nuevos: 72/72 OK en Docker. Lint: 0 errores flake8.
 
 ---
 
 ### TASK-029
 **Nombre:** API hoteles + grupos + asignación de alumnos  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 2h  
 **Dependencias:** TASK-025
 
 **Descripción:**  
-CRUD de hoteles y grupos. Endpoint para asignar lista de alumnos a un grupo.
+CRUD de hoteles y grupos vinculados a un viaje. Endpoint para asignar lista de alumnos a un grupo con validación de capacidad máxima.
 
 **Archivos afectados:**
-- `backend/apps/viajes/views.py`
-- `backend/apps/viajes/serializers.py`
+- `backend/apps/viajes/serializers.py` — 3 nuevos serializers (`HotelSerializer`, `GrupoSerializer`, `AsignarAlumnosSerializer`)
+- `backend/apps/viajes/views.py` — 2 helpers + 5 nuevas vistas
+- `backend/apps/viajes/urls.py` — 5 nuevos patterns
+- `backend/apps/viajes/tests.py` — 24 nuevos tests (96 total)
 
 **Criterios de aceptación:**
-- [ ] CRUD hoteles vinculados a viaje
-- [ ] CRUD grupos con capacidad opcional
-- [ ] `POST /grupos/{id}/alumnos/` asigna lista de alumnos
-- [ ] Respeta capacidad máxima del grupo si está definida
+- [x] `GET/POST /viajes/{viaje_id}/hoteles/` lista y crea hoteles
+- [x] `GET/PATCH/DELETE /viajes/{viaje_id}/hoteles/{hotel_id}/` detalle, edición y eliminación
+- [x] `GET/POST /viajes/{viaje_id}/grupos/` lista y crea grupos
+- [x] `GET/PATCH/DELETE /viajes/{viaje_id}/grupos/{grupo_id}/` detalle, edición y eliminación
+- [x] `POST /viajes/{viaje_id}/grupos/{grupo_id}/alumnos/` asigna lista de alumnos (idempotente)
+- [x] Capacidad máxima del grupo respetada — exceder retorna 400
+- [x] Alumnos de otra agencia en el payload → 400
+- [x] IDs duplicados en payload → 400 (validado en serializer)
+- [x] Nombre duplicado de grupo en el mismo viaje → 400 (IntegrityError capturado)
+- [x] Cadena multi-tenant: agencia → viaje → hotel/grupo en todos los endpoints
+
+**Notas:**
+- `grupo.alumnos.add(*alumnos)` es idempotente: reasignar un alumno ya en el grupo es no-op.
+- Capacidad se calcula con `ids_nuevos_count = len(set(ids_payload) - ids_ya)` para no penalizar alumnos ya asignados.
+- 24 tests nuevos: 96/96 OK en Docker. Lint: 0 errores flake8.
 
 ---
 

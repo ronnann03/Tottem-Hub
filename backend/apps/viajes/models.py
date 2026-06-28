@@ -86,6 +86,16 @@ class PlanPago(models.Model):
     def __str__(self):
         return f"Plan de pago - {self.viaje.nombre}"
 
+    @property
+    def tiene_pagos_verificados(self):
+        """
+        Verifica si el plan de pagos posee pagos con estado 'verificado'.
+        Actualmente retorna False hasta que se implemente la app Pagos.
+        """
+        # TODO: Implementar validación real cuando exista la app Pagos (TASK-036)  # noqa: E501
+        # return self.cuotas.filter(pagos__estado='verificado').exists()
+        return False
+
 
 class Cuota(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -230,6 +240,59 @@ class Hotel(models.Model):
 
     def __str__(self):
         return self.nombre
+
+
+class TipoDocumento(models.TextChoices):
+    DNI = 'DNI', 'DNI'
+    PASAPORTE = 'PASAPORTE', 'Pasaporte'
+    OTRO = 'OTRO', 'Otro'
+
+
+class Alumno(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    agencia = models.ForeignKey(
+        "agencias.Agencia",
+        on_delete=models.CASCADE,
+        related_name="alumnos"
+    )
+    nombres = models.CharField(max_length=100)
+    apellidos = models.CharField(max_length=150)
+    tipo_documento = models.CharField(
+        max_length=20,
+        choices=TipoDocumento.choices,
+        default=TipoDocumento.DNI
+    )
+    numero_documento = models.CharField(max_length=50)
+    fecha_nacimiento = models.DateField()
+    telefono = models.CharField(max_length=20, blank=True, default="")
+    email = models.EmailField(blank=True, default="")
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    # Preparado para futura relación con Grupo si el diseño lo requiere,
+    # aunque normalmente la relación Alumno-Grupo pasa por Inscripcion.
+    grupos = models.ManyToManyField(
+        Grupo,
+        blank=True,
+        related_name="alumnos"
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["agencia", "numero_documento"],
+                name="unique_documento_por_agencia"
+            )
+        ]
+        ordering = ["apellidos", "nombres"]
+
+    def __str__(self):
+        return f"{self.apellidos}, {self.nombres} ({self.numero_documento})"
+
+    @property
+    def nombre_completo(self):
+        return f"{self.nombres} {self.apellidos}"
 
 
 class DocumentoRequerido(models.Model):

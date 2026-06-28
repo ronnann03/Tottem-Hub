@@ -1,3 +1,5 @@
+from unittest.mock import patch, PropertyMock
+from apps.viajes.models import PlanPago, Cuota, Alumno, EtapaItinerario, Actividad, Hotel, Grupo
 from datetime import timedelta
 from django.db import transaction
 from django.test import TestCase
@@ -302,3 +304,958 @@ class ViajeDetailEndpointTests(APITestCase):
         itinerarios_antes = Itinerario.objects.count()
         self.client.patch(self.url_propio, {"nombre": "Trigger"})
         self.assertEqual(Itinerario.objects.count(), itinerarios_antes)
+
+
+class PlanPagoEndpointTests(APITestCase):
+    def setUp(self):
+        self.agencia = Agencia.objects.create(nombre="Ag1", slug="ag1", email_contacto="a@a.com")  # noqa: E501
+        self.agencia2 = Agencia.objects.create(nombre="Ag2", slug="ag2", email_contacto="b@b.com")  # noqa: E501
+        self.agente = Usuario.objects.create_user(
+            email="agente@a.com", password="pwd", rol=RolUsuario.AGENTE, agencia=self.agencia, email_verificado=True  # noqa: E501
+        )
+        self.padre = Usuario.objects.create_user(
+            email="padre@a.com", password="pwd", rol=RolUsuario.PADRE, email_verificado=True  # noqa: E501
+        )
+        self.viaje = Viaje.objects.create(
+            agencia=self.agencia, nombre="V1", destino="D1",
+            fecha_salida=timezone.now().date(), fecha_regreso=timezone.now().date() + timedelta(days=1),  # noqa: E501
+            cupo_maximo=10, precio_total=100
+        )
+        self.viaje_ajeno = Viaje.objects.create(
+            agencia=self.agencia2, nombre="V2", destino="D2",
+            fecha_salida=timezone.now().date(), fecha_regreso=timezone.now().date() + timedelta(days=1),  # noqa: E501
+            cupo_maximo=10, precio_total=100
+        )
+        self.url = reverse('viaje-plan-pago', kwargs={'viaje_id': self.viaje.id})  # noqa: E501
+        self.url_ajeno = reverse('viaje-plan-pago', kwargs={'viaje_id': self.viaje_ajeno.id})  # noqa: E501
+
+    def test_post_crear_plan(self):
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "descripcion": "Plan inicial",
+            "total_cuotas": 2,
+            "cuotas": [
+                {"numero_cuota": 1, "descripcion": "Reserva", "importe": 50, "fecha_vencimiento": "2026-08-01"},  # noqa: E501
+                {"numero_cuota": 2, "descripcion": "Saldo", "importe": 50, "fecha_vencimiento": "2026-09-01"}  # noqa: E501
+            ]
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PlanPago.objects.count(), 1)
+        self.assertEqual(Cuota.objects.count(), 2)
+
+    def test_post_viaje_ajeno_da_404(self):
+        self.client.force_authenticate(user=self.agente)
+        response = self.client.post(self.url_ajeno, {"total_cuotas": 1, "cuotas": []}, format='json')  # noqa: E501
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_post_duplicado_bloqueado(self):
+        self.client.force_authenticate(user=self.agente)
+        PlanPago.objects.create(viaje=self.viaje, total_cuotas=1)
+        response = self.client.post(self.url, {"total_cuotas": 1, "cuotas": []}, format='json')  # noqa: E501
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_cuotas_invalidas(self):
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "total_cuotas": 2,
+            "cuotas": [
+                {"numero_cuota": 1, "importe": 0, "fecha_vencimiento": "2026-08-01"},  # noqa: E501
+                {"numero_cuota": 1, "importe": 50, "fecha_vencimiento": "2026-09-01"}  # noqa: E501
+            ]
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_get_plan_pago(self):
+        self.client.force_authenticate(user=self.agente)
+        plan = PlanPago.objects.create(viaje=self.viaje, total_cuotas=1, descripcion="P1")  # noqa: E501
+        Cuota.objects.create(plan_pago=plan, numero_cuota=1, importe=100, fecha_vencimiento="2026-08-01")  # noqa: E501
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['descripcion'], "P1")
+        self.assertEqual(len(response.data['cuotas']), 1)
+
+    def test_patch_plan_pago(self):
+        self.client.force_authenticate(user=self.agente)
+        plan = PlanPago.objects.create(viaje=self.viaje, total_cuotas=1)
+        Cuota.objects.create(plan_pago=plan, numero_cuota=1, importe=100, fecha_vencimiento="2026-08-01")  # noqa: E501
+
+        data = {
+            "descripcion": "Actualizado",
+            "total_cuotas": 1,
+            "cuotas": [
+                {"numero_cuota": 1, "descripcion": "Reserva actual", "importe": 150, "fecha_vencimiento": "2026-08-01"}  # noqa: E501
+            ]
+        }
+        response = self.client.patch(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        plan.refresh_from_db()
+        self.assertEqual(plan.descripcion, "Actualizado")
+        self.assertEqual(plan.cuotas.first().importe, 150)
+
+    @patch('apps.viajes.models.PlanPago.tiene_pagos_verificados', new_callable=PropertyMock)  # noqa: E501
+    def test_patch_bloqueado_pagos_verificados(self, mock_tiene_pagos):
+        mock_tiene_pagos.return_value = True
+        self.client.force_authenticate(user=self.agente)
+        plan = PlanPago.objects.create(viaje=self.viaje, total_cuotas=1)
+        response = self.client.patch(self.url, {"descripcion": "No debería pasar"}, format='json')  # noqa: E501
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        plan.refresh_from_db()
+        self.assertNotEqual(plan.descripcion, "No debería pasar")
+
+    def test_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    @patch('apps.viajes.views.PlanPago.objects.filter')
+    def test_post_concurrencia_integrity_error(self, mock_filter):
+        mock_filter.return_value.exists.return_value = False
+        PlanPago.objects.create(viaje=self.viaje, total_cuotas=1)
+
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "total_cuotas": 1,
+            "cuotas": [
+                {"numero_cuota": 1, "descripcion": "Única", "importe": 50, "fecha_vencimiento": "2026-08-01"}  # noqa: E501
+            ]
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(PlanPago.objects.count(), 1)
+
+    @patch('apps.viajes.serializers.Cuota.objects.bulk_create')
+    def test_post_rollback_atomicidad(self, mock_bulk_create):
+        mock_bulk_create.side_effect = Exception("Falla simulada en base de datos")  # noqa: E501
+        self.client.force_authenticate(user=self.agente)
+        data = {
+            "total_cuotas": 1,
+            "cuotas": [
+                {"numero_cuota": 1, "descripcion": "Reserva", "importe": 50, "fecha_vencimiento": "2026-08-01"}  # noqa: E501
+            ]
+        }
+        with self.assertRaises(Exception):
+            self.client.post(self.url, data, format='json')
+
+        self.assertEqual(PlanPago.objects.count(), 0)
+
+    def test_patch_conserva_uuid_upsert_elimina(self):
+        self.client.force_authenticate(user=self.agente)
+        plan = PlanPago.objects.create(viaje=self.viaje, total_cuotas=2)
+        cuota1 = Cuota.objects.create(plan_pago=plan, numero_cuota=1, importe=100, fecha_vencimiento="2026-08-01")  # noqa: E501
+        cuota2 = Cuota.objects.create(plan_pago=plan, numero_cuota=2, importe=100, fecha_vencimiento="2026-09-01")  # noqa: E501
+
+        cuota1_id = str(cuota1.id)
+
+        data = {
+            "total_cuotas": 2,
+            "cuotas": [
+                {"numero_cuota": 1, "descripcion": "Reserva actualizada", "importe": 150, "fecha_vencimiento": "2026-08-01"},  # noqa: E501
+                {"numero_cuota": 3, "descripcion": "Cuota nueva", "importe": 50, "fecha_vencimiento": "2026-10-01"}  # noqa: E501
+            ]
+        }
+        response = self.client.patch(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertFalse(Cuota.objects.filter(id=cuota2.id).exists())
+        self.assertTrue(Cuota.objects.filter(numero_cuota=3).exists())
+        self.assertTrue(Cuota.objects.filter(id=cuota1_id).exists())
+        self.assertEqual(plan.cuotas.count(), 2)
+
+
+class AlumnoEndpointTests(APITestCase):
+    def setUp(self):
+        self.agencia1 = Agencia.objects.create(nombre="Ag1", slug="ag1", email_contacto="a@a.com")  # noqa: E501
+        self.agencia2 = Agencia.objects.create(nombre="Ag2", slug="ag2", email_contacto="b@b.com")  # noqa: E501
+
+        self.agente1 = Usuario.objects.create_user(
+            email="agente1@a.com", password="pwd", rol=RolUsuario.AGENTE, agencia=self.agencia1, email_verificado=True  # noqa: E501
+        )
+        self.agente2 = Usuario.objects.create_user(
+            email="agente2@a.com", password="pwd", rol=RolUsuario.AGENTE, agencia=self.agencia2, email_verificado=True  # noqa: E501
+        )
+        self.padre = Usuario.objects.create_user(
+            email="padre@a.com", password="pwd", rol=RolUsuario.PADRE, email_verificado=True  # noqa: E501
+        )
+        self.url = '/api/v1/alumnos/'
+
+    def test_creacion_alumno_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {
+            "nombres": "Juan",
+            "apellidos": "Pérez",
+            "tipo_documento": "DNI",
+            "numero_documento": "12345678",
+            "fecha_nacimiento": "2010-01-01"
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Alumno.objects.count(), 1)
+        self.assertEqual(Alumno.objects.first().agencia, self.agencia1)
+
+    def test_duplicado_documento_misma_agencia(self):
+        self.client.force_authenticate(user=self.agente1)
+        Alumno.objects.create(agencia=self.agencia1, nombres="A", apellidos="B", numero_documento="111", fecha_nacimiento="2010-01-01")  # noqa: E501
+        data = {
+            "nombres": "C", "apellidos": "D", "numero_documento": "111", "fecha_nacimiento": "2010-01-01"  # noqa: E501
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_duplicado_documento_diferente_agencia(self):
+        self.client.force_authenticate(user=self.agente1)
+        # Agencia 2 tiene el documento "111"
+        Alumno.objects.create(agencia=self.agencia2, nombres="A", apellidos="B", numero_documento="111", fecha_nacimiento="2010-01-01")  # noqa: E501
+        data = {
+            "nombres": "C", "apellidos": "D", "numero_documento": "111", "fecha_nacimiento": "2010-01-01"  # noqa: E501
+        }
+        # Agencia 1 debe poder crearlo
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_aislamiento_multi_tenant_y_listado(self):
+        Alumno.objects.create(agencia=self.agencia1, nombres="A1", apellidos="B", numero_documento="1", fecha_nacimiento="2010-01-01")  # noqa: E501
+        Alumno.objects.create(agencia=self.agencia2, nombres="A2", apellidos="B", numero_documento="2", fecha_nacimiento="2010-01-01")  # noqa: E501
+
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        if isinstance(response.data, dict) and 'results' in response.data:
+            data_list = response.data['results']
+        else:
+            data_list = response.data
+
+        self.assertEqual(len(data_list), 1)
+        self.assertEqual(data_list[0]['nombres'], "A1")
+
+        # Test 404 para ajeno
+        ajeno_id = Alumno.objects.get(numero_documento="2").id
+        response_detail = self.client.get(f'{self.url}{ajeno_id}/')
+        self.assertEqual(response_detail.status_code, status.HTTP_404_NOT_FOUND)  # noqa: E501
+
+    def test_patch_parcial(self):
+        self.client.force_authenticate(user=self.agente1)
+        alumno = Alumno.objects.create(agencia=self.agencia1, nombres="A", apellidos="B", numero_documento="123", fecha_nacimiento="2010-01-01")  # noqa: E501
+        response = self.client.patch(f'{self.url}{alumno.id}/', {"nombres": "Modificado"}, format='json')  # noqa: E501
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        alumno.refresh_from_db()
+        self.assertEqual(alumno.nombres, "Modificado")
+        self.assertEqual(alumno.apellidos, "B")
+
+    def test_acceso_sin_permisos(self):
+        # Padre
+        self.client.force_authenticate(user=self.padre)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Anon
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_validacion_fecha_futura(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {
+            "nombres": "Juan",
+            "apellidos": "Pérez",
+            "numero_documento": "12345678",
+            "fecha_nacimiento": "2100-01-01"  # Futura
+        }
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('fecha_nacimiento', response.data)
+
+
+# ─── TASK-028: API Itinerario ─────────────────────────────────────────────────
+
+class ItinerarioBaseTestCase(APITestCase):
+    """Fixture compartido para todos los tests de itinerario."""
+
+    def setUp(self):
+        self.agencia1 = Agencia.objects.create(
+            nombre="Ag1", slug="ag1", email_contacto="a@a.com"
+        )
+        self.agencia2 = Agencia.objects.create(
+            nombre="Ag2", slug="ag2", email_contacto="b@b.com"
+        )
+        self.agente1 = Usuario.objects.create_user(
+            email="ag1@a.com", password="pwd", rol=RolUsuario.AGENTE,
+            agencia=self.agencia1, email_verificado=True
+        )
+        self.agente2 = Usuario.objects.create_user(
+            email="ag2@a.com", password="pwd", rol=RolUsuario.AGENTE,
+            agencia=self.agencia2, email_verificado=True
+        )
+        self.padre = Usuario.objects.create_user(
+            email="padre@a.com", password="pwd", rol=RolUsuario.PADRE,
+            email_verificado=True
+        )
+        today = timezone.now().date()
+        self.viaje = Viaje.objects.create(
+            agencia=self.agencia1, nombre="V1", destino="D1",
+            fecha_salida=today, fecha_regreso=today + timedelta(days=3),
+            cupo_maximo=10, precio_total=100
+        )
+        # signal auto-crea el Itinerario al crear el Viaje
+        self.itinerario = self.viaje.itinerario
+        self.viaje_ajeno = Viaje.objects.create(
+            agencia=self.agencia2, nombre="V2", destino="D2",
+            fecha_salida=today, fecha_regreso=today + timedelta(days=1),
+            cupo_maximo=10, precio_total=100
+        )
+
+    def url_itinerario(self, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/itinerario/'
+
+    def url_etapas(self, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/etapas/'
+
+    def url_etapa(self, etapa_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/etapas/{etapa_id}/'
+
+    def url_actividades(self, etapa_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/etapas/{etapa_id}/actividades/'
+
+    def url_actividad(self, etapa_id, actividad_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/etapas/{etapa_id}/actividades/{actividad_id}/'
+
+    def url_reordenar(self, etapa_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/etapas/{etapa_id}/actividades/reordenar/'
+
+    def crear_etapa(self, dia_numero=1, titulo="Día 1"):
+        return EtapaItinerario.objects.create(
+            itinerario=self.itinerario, dia_numero=dia_numero, titulo=titulo
+        )
+
+    def crear_actividad(self, etapa, titulo="Actividad", orden=0):
+        return Actividad.objects.create(etapa=etapa, titulo=titulo, orden=orden)
+
+
+class ItinerarioRetrieveTests(ItinerarioBaseTestCase):
+
+    def test_get_itinerario_vacio(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_itinerario())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['etapas'], [])
+
+    def test_get_itinerario_con_etapas_y_actividades(self):
+        etapa = self.crear_etapa(dia_numero=1, titulo="Madrid")
+        self.crear_actividad(etapa, titulo="Vuelo", orden=1)
+        self.crear_actividad(etapa, titulo="Hotel", orden=2)
+
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_itinerario())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data['etapas']), 1)
+        self.assertEqual(len(response.data['etapas'][0]['actividades']), 2)
+
+    def test_get_itinerario_viaje_ajeno_404(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_itinerario(self.viaje_ajeno.id))
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_get_itinerario_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.get(self.url_itinerario())
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.get(self.url_itinerario())
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class EtapaListCreateTests(ItinerarioBaseTestCase):
+
+    def test_post_etapa_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_etapas(), {"dia_numero": 1, "titulo": "Día 1"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(EtapaItinerario.objects.count(), 1)
+        self.assertEqual(EtapaItinerario.objects.first().itinerario, self.itinerario)
+
+    def test_get_etapas_lista(self):
+        self.crear_etapa(1, "Día 1")
+        self.crear_etapa(2, "Día 2")
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_etapas())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_post_etapa_dia_duplicado_400(self):
+        self.crear_etapa(dia_numero=1)
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_etapas(), {"dia_numero": 1, "titulo": "Duplicado"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('dia_numero', response.data)
+
+    def test_post_etapa_dia_cero_400(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_etapas(), {"dia_numero": 0, "titulo": "Día 0"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_post_etapa_viaje_ajeno_404(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_etapas(self.viaje_ajeno.id),
+            {"dia_numero": 1, "titulo": "Intento"},
+            format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(EtapaItinerario.objects.count(), 0)
+
+    def test_post_etapa_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.post(self.url_etapas(), {"dia_numero": 1, "titulo": "X"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.post(self.url_etapas(), {"dia_numero": 1, "titulo": "X"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class EtapaDetailTests(ItinerarioBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.etapa = self.crear_etapa(dia_numero=1, titulo="Día 1")
+
+    def test_get_etapa_detalle(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_etapa(self.etapa.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['titulo'], "Día 1")
+
+    def test_patch_etapa(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.patch(
+            self.url_etapa(self.etapa.id), {"titulo": "Actualizado"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.etapa.refresh_from_db()
+        self.assertEqual(self.etapa.titulo, "Actualizado")
+
+    def test_delete_etapa_cascada_actividades(self):
+        act = self.crear_actividad(self.etapa)
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.delete(self.url_etapa(self.etapa.id))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(EtapaItinerario.objects.filter(id=self.etapa.id).exists())
+        self.assertFalse(Actividad.objects.filter(id=act.id).exists())
+
+    def test_operaciones_etapa_ajena_404(self):
+        etapa_ajena = EtapaItinerario.objects.create(
+            itinerario=self.viaje_ajeno.itinerario, dia_numero=1, titulo="Ajena"
+        )
+        self.client.force_authenticate(user=self.agente1)
+        self.assertEqual(
+            self.client.get(self.url_etapa(etapa_ajena.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+        self.assertEqual(
+            self.client.patch(self.url_etapa(etapa_ajena.id), {}, format='json').status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+        self.assertEqual(
+            self.client.delete(self.url_etapa(etapa_ajena.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+
+class ActividadListCreateTests(ItinerarioBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.etapa = self.crear_etapa(dia_numero=1)
+
+    def test_post_actividad_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {"titulo": "Vuelo a Madrid", "tipo": "vuelo"}
+        response = self.client.post(self.url_actividades(self.etapa.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Actividad.objects.count(), 1)
+        self.assertEqual(Actividad.objects.first().etapa, self.etapa)
+
+    def test_get_actividades_lista(self):
+        self.crear_actividad(self.etapa, "A1", orden=1)
+        self.crear_actividad(self.etapa, "A2", orden=2)
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_actividades(self.etapa.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_post_actividad_etapa_ajena_404(self):
+        etapa_ajena = EtapaItinerario.objects.create(
+            itinerario=self.viaje_ajeno.itinerario, dia_numero=1, titulo="Ajena"
+        )
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_actividades(etapa_ajena.id),
+            {"titulo": "Hack"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(Actividad.objects.count(), 0)
+
+    def test_post_actividad_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.post(self.url_actividades(self.etapa.id), {"titulo": "X"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.post(self.url_actividades(self.etapa.id), {"titulo": "X"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ActividadDetailTests(ItinerarioBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.etapa = self.crear_etapa(dia_numero=1)
+        self.actividad = self.crear_actividad(self.etapa, "Vuelo", orden=5)
+
+    def test_get_actividad_detalle(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_actividad(self.etapa.id, self.actividad.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['titulo'], "Vuelo")
+
+    def test_patch_actividad(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.patch(
+            self.url_actividad(self.etapa.id, self.actividad.id),
+            {"titulo": "Vuelo BIO-MAD"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.actividad.refresh_from_db()
+        self.assertEqual(self.actividad.titulo, "Vuelo BIO-MAD")
+
+    def test_patch_orden_ignorado_invariante(self):
+        """PATCH individual no debe modificar orden (solo bulk reordenar)."""
+        self.client.force_authenticate(user=self.agente1)
+        self.client.patch(
+            self.url_actividad(self.etapa.id, self.actividad.id),
+            {"orden": 99}, format='json'
+        )
+        self.actividad.refresh_from_db()
+        self.assertEqual(self.actividad.orden, 5)
+
+    def test_delete_actividad(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.delete(self.url_actividad(self.etapa.id, self.actividad.id))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Actividad.objects.filter(id=self.actividad.id).exists())
+
+    def test_operaciones_actividad_ajena_404(self):
+        etapa_ajena = EtapaItinerario.objects.create(
+            itinerario=self.viaje_ajeno.itinerario, dia_numero=1, titulo="Ajena"
+        )
+        act_ajena = Actividad.objects.create(etapa=etapa_ajena, titulo="Acto ajeno")
+        self.client.force_authenticate(user=self.agente1)
+        self.assertEqual(
+            self.client.get(self.url_actividad(self.etapa.id, act_ajena.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+        self.assertEqual(
+            self.client.delete(self.url_actividad(self.etapa.id, act_ajena.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+
+class ActividadBulkReordenarTests(ItinerarioBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.etapa = self.crear_etapa(dia_numero=1)
+        self.act1 = self.crear_actividad(self.etapa, "A1", orden=1)
+        self.act2 = self.crear_actividad(self.etapa, "A2", orden=2)
+        self.act3 = self.crear_actividad(self.etapa, "A3", orden=3)
+
+    def test_reordenar_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {
+            "actividades": [
+                {"id": str(self.act1.id), "orden": 3},
+                {"id": str(self.act2.id), "orden": 1},
+                {"id": str(self.act3.id), "orden": 2},
+            ]
+        }
+        response = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.act1.refresh_from_db()
+        self.act2.refresh_from_db()
+        self.act3.refresh_from_db()
+        self.assertEqual(self.act1.orden, 3)
+        self.assertEqual(self.act2.orden, 1)
+        self.assertEqual(self.act3.orden, 2)
+
+    def test_reordenar_parcial(self):
+        """Permite reordenar solo un subconjunto de actividades."""
+        self.client.force_authenticate(user=self.agente1)
+        data = {"actividades": [{"id": str(self.act1.id), "orden": 99}]}
+        response = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.act1.refresh_from_db()
+        self.assertEqual(self.act1.orden, 99)
+
+    def test_reordenar_id_invalido_400(self):
+        """ID de actividad que no pertenece a esta etapa → 400."""
+        etapa2 = self.crear_etapa(dia_numero=2)
+        act_otra_etapa = self.crear_actividad(etapa2, "B1")
+        self.client.force_authenticate(user=self.agente1)
+        data = {"actividades": [{"id": str(act_otra_etapa.id), "orden": 0}]}
+        response = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reordenar_id_duplicado_400(self):
+        """El mismo ID dos veces en el payload → 400."""
+        self.client.force_authenticate(user=self.agente1)
+        data = {
+            "actividades": [
+                {"id": str(self.act1.id), "orden": 1},
+                {"id": str(self.act1.id), "orden": 2},
+            ]
+        }
+        response = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reordenar_payload_vacio_400(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.patch(
+            self.url_reordenar(self.etapa.id), {"actividades": []}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_reordenar_viaje_ajeno_404(self):
+        etapa_ajena = EtapaItinerario.objects.create(
+            itinerario=self.viaje_ajeno.itinerario, dia_numero=1, titulo="Ajena"
+        )
+        act = Actividad.objects.create(etapa=etapa_ajena, titulo="X")
+        self.client.force_authenticate(user=self.agente1)
+        data = {"actividades": [{"id": str(act.id), "orden": 0}]}
+        response = self.client.patch(
+            self.url_reordenar(etapa_ajena.id, self.viaje_ajeno.id), data, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_reordenar_permisos(self):
+        data = {"actividades": [{"id": str(self.act1.id), "orden": 0}]}
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.patch(self.url_reordenar(self.etapa.id), data, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# ─── TASK-029: API Hoteles + Grupos + Asignación de Alumnos ──────────────────
+
+class HotelGrupoBaseTestCase(APITestCase):
+    """Fixture compartido para tests de hoteles y grupos."""
+
+    def setUp(self):
+        self.agencia1 = Agencia.objects.create(
+            nombre="AgHG1", slug="ag-hg-1", email_contacto="hg1@a.com"
+        )
+        self.agencia2 = Agencia.objects.create(
+            nombre="AgHG2", slug="ag-hg-2", email_contacto="hg2@a.com"
+        )
+        self.agente1 = Usuario.objects.create_user(
+            email="agenthg1@a.com", password="pwd", rol=RolUsuario.AGENTE,
+            agencia=self.agencia1, email_verificado=True
+        )
+        self.padre = Usuario.objects.create_user(
+            email="padrehg@a.com", password="pwd", rol=RolUsuario.PADRE,
+            email_verificado=True
+        )
+        today = timezone.now().date()
+        self.viaje = Viaje.objects.create(
+            agencia=self.agencia1, nombre="VHG1", destino="D1",
+            fecha_salida=today, fecha_regreso=today + timedelta(days=3),
+            cupo_maximo=10, precio_total=100
+        )
+        self.viaje_ajeno = Viaje.objects.create(
+            agencia=self.agencia2, nombre="VHG2", destino="D2",
+            fecha_salida=today, fecha_regreso=today + timedelta(days=1),
+            cupo_maximo=10, precio_total=100
+        )
+
+    def url_hoteles(self, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/hoteles/'
+
+    def url_hotel(self, hotel_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/hoteles/{hotel_id}/'
+
+    def url_grupos(self, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/grupos/'
+
+    def url_grupo(self, grupo_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/grupos/{grupo_id}/'
+
+    def url_asignar(self, grupo_id, viaje_id=None):
+        vid = viaje_id or self.viaje.id
+        return f'/api/v1/viajes/{vid}/grupos/{grupo_id}/alumnos/'
+
+    def crear_hotel(self, nombre="Hotel Test"):
+        return Hotel.objects.create(viaje=self.viaje, nombre=nombre)
+
+    def crear_grupo(self, nombre="Grupo A", capacidad=None):
+        return Grupo.objects.create(viaje=self.viaje, nombre=nombre, capacidad=capacidad)
+
+    def crear_alumno(self, agencia=None, doc="12345678"):
+        ag = agencia or self.agencia1
+        return Alumno.objects.create(
+            agencia=ag, nombres="Juan", apellidos="Pérez",
+            numero_documento=doc, fecha_nacimiento="2000-01-01",
+        )
+
+
+class HotelListCreateTests(HotelGrupoBaseTestCase):
+
+    def test_post_hotel_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {"nombre": "Hotel Sol", "descripcion": "Desc", "web_url": ""}
+        response = self.client.post(self.url_hoteles(), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Hotel.objects.count(), 1)
+        self.assertEqual(Hotel.objects.first().viaje, self.viaje)
+
+    def test_get_hoteles_lista(self):
+        self.crear_hotel("H1")
+        self.crear_hotel("H2")
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_hoteles())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_post_hotel_viaje_ajeno_404(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_hoteles(self.viaje_ajeno.id), {"nombre": "Hack"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(Hotel.objects.count(), 0)
+
+    def test_post_hotel_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.post(self.url_hoteles(), {"nombre": "H"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.post(self.url_hoteles(), {"nombre": "H"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class HotelDetailTests(HotelGrupoBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.hotel = self.crear_hotel("Gran Hotel")
+
+    def test_get_hotel_detalle(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_hotel(self.hotel.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nombre'], "Gran Hotel")
+
+    def test_patch_hotel(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.patch(
+            self.url_hotel(self.hotel.id), {"nombre": "Hotel Actualizado"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.hotel.refresh_from_db()
+        self.assertEqual(self.hotel.nombre, "Hotel Actualizado")
+
+    def test_delete_hotel(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.delete(self.url_hotel(self.hotel.id))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Hotel.objects.filter(id=self.hotel.id).exists())
+
+    def test_operaciones_hotel_ajeno_404(self):
+        hotel_ajeno = Hotel.objects.create(viaje=self.viaje_ajeno, nombre="Ajeno")
+        self.client.force_authenticate(user=self.agente1)
+        self.assertEqual(
+            self.client.get(self.url_hotel(hotel_ajeno.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+        self.assertEqual(
+            self.client.delete(self.url_hotel(hotel_ajeno.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+
+class GrupoListCreateTests(HotelGrupoBaseTestCase):
+
+    def test_post_grupo_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {"nombre": "Grupo A", "capacidad": 25}
+        response = self.client.post(self.url_grupos(), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Grupo.objects.count(), 1)
+        self.assertEqual(Grupo.objects.first().viaje, self.viaje)
+
+    def test_get_grupos_lista(self):
+        self.crear_grupo("G1")
+        self.crear_grupo("G2")
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_grupos())
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 2)
+
+    def test_post_grupo_nombre_duplicado_400(self):
+        self.crear_grupo("Grupo A")
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_grupos(), {"nombre": "Grupo A"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('nombre', response.data)
+
+    def test_post_grupo_viaje_ajeno_404(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.post(
+            self.url_grupos(self.viaje_ajeno.id), {"nombre": "Hack"}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_post_grupo_permisos(self):
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.post(self.url_grupos(), {"nombre": "G"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.post(self.url_grupos(), {"nombre": "G"}, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class GrupoDetailTests(HotelGrupoBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.grupo = self.crear_grupo("Grupo A", capacidad=10)
+
+    def test_get_grupo_detalle(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.get(self.url_grupo(self.grupo.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nombre'], "Grupo A")
+        self.assertEqual(response.data['capacidad'], 10)
+
+    def test_patch_grupo(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.patch(
+            self.url_grupo(self.grupo.id), {"capacidad": 20}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.grupo.refresh_from_db()
+        self.assertEqual(self.grupo.capacidad, 20)
+
+    def test_delete_grupo(self):
+        self.client.force_authenticate(user=self.agente1)
+        response = self.client.delete(self.url_grupo(self.grupo.id))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Grupo.objects.filter(id=self.grupo.id).exists())
+
+    def test_operaciones_grupo_ajeno_404(self):
+        grupo_ajeno = Grupo.objects.create(viaje=self.viaje_ajeno, nombre="Ajeno")
+        self.client.force_authenticate(user=self.agente1)
+        self.assertEqual(
+            self.client.get(self.url_grupo(grupo_ajeno.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+        self.assertEqual(
+            self.client.delete(self.url_grupo(grupo_ajeno.id)).status_code,
+            status.HTTP_404_NOT_FOUND
+        )
+
+
+class GrupoAsignarAlumnosTests(HotelGrupoBaseTestCase):
+
+    def setUp(self):
+        super().setUp()
+        self.grupo = self.crear_grupo("Grupo A", capacidad=3)
+        self.alumno1 = self.crear_alumno(doc="DOC001")
+        self.alumno2 = self.crear_alumno(doc="DOC002")
+        self.alumno3 = self.crear_alumno(doc="DOC003")
+
+    def test_asignar_alumnos_exitoso(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {"alumno_ids": [str(self.alumno1.id), str(self.alumno2.id)]}
+        response = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['asignados'], 2)
+        self.assertEqual(response.data['total_en_grupo'], 2)
+        self.assertEqual(self.grupo.alumnos.count(), 2)
+
+    def test_asignar_alumno_otra_agencia_400(self):
+        alumno_ajeno = self.crear_alumno(agencia=self.agencia2, doc="EXT999")
+        self.client.force_authenticate(user=self.agente1)
+        data = {"alumno_ids": [str(alumno_ajeno.id)]}
+        response = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('alumno_ids', response.data)
+        self.assertEqual(self.grupo.alumnos.count(), 0)
+
+    def test_capacidad_excedida_400(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {
+            "alumno_ids": [
+                str(self.alumno1.id), str(self.alumno2.id), str(self.alumno3.id),
+                str(self.crear_alumno(doc="DOC004").id),
+            ]
+        }
+        response = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('alumno_ids', response.data)
+        self.assertEqual(self.grupo.alumnos.count(), 0)
+
+    def test_ids_duplicados_400(self):
+        self.client.force_authenticate(user=self.agente1)
+        data = {"alumno_ids": [str(self.alumno1.id), str(self.alumno1.id)]}
+        response = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_asignar_idempotente_no_excede_capacidad(self):
+        """Reasignar un alumno ya en el grupo no consume capacidad extra."""
+        self.grupo.alumnos.add(self.alumno1)
+        self.client.force_authenticate(user=self.agente1)
+        # alumno1 ya está; añadir alumno1 + alumno2 = solo 1 nuevo → capacidad 3, OK
+        data = {"alumno_ids": [str(self.alumno1.id), str(self.alumno2.id)]}
+        response = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(self.grupo.alumnos.count(), 2)
+
+    def test_asignar_viaje_ajeno_404(self):
+        self.client.force_authenticate(user=self.agente1)
+        grupo_ajeno = Grupo.objects.create(viaje=self.viaje_ajeno, nombre="Ajeno")
+        data = {"alumno_ids": [str(self.alumno1.id)]}
+        response = self.client.post(
+            self.url_asignar(grupo_ajeno.id, self.viaje_ajeno.id), data, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_asignar_permisos(self):
+        data = {"alumno_ids": [str(self.alumno1.id)]}
+        self.client.force_authenticate(user=self.padre)
+        r = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(r.status_code, status.HTTP_403_FORBIDDEN)
+        self.client.logout()
+        r = self.client.post(self.url_asignar(self.grupo.id), data, format='json')
+        self.assertEqual(r.status_code, status.HTTP_401_UNAUTHORIZED)

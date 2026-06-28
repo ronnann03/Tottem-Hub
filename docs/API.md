@@ -207,59 +207,310 @@ Actualiza plan (solo si no hay pagos verificados).
 
 ---
 
+## Hoteles
+
+### GET `/viajes/{viaje_id}/hoteles/` `[agente]`
+Lista hoteles del viaje.
+
+**Respuesta:** `200 OK` — array de objetos `Hotel`
+```json
+[
+  {
+    "id": "uuid",
+    "nombre": "Hotel Sol",
+    "descripcion": "string",
+    "tasa_turistica": "15.00 | null",
+    "fianza": "100.00 | null",
+    "web_url": "string",
+    "maps_url": "string",
+    "imagen": "url | null"
+  }
+]
+```
+
+---
+
+### POST `/viajes/{viaje_id}/hoteles/` `[agente]`
+Crea un hotel vinculado al viaje.
+
+**Payload:** `multipart/form-data` (si incluye imagen) o `application/json`
+```json
+{
+  "nombre": "Hotel Sol",
+  "descripcion": "string (opcional)",
+  "tasa_turistica": "15.00 (opcional)",
+  "fianza": "100.00 (opcional)",
+  "web_url": "string (opcional)",
+  "maps_url": "string (opcional)",
+  "imagen": "file (opcional)"
+}
+```
+**Respuesta:** `201 Created` — objeto `Hotel` creado
+
+**Errores:**
+- `401` — sin autenticación
+- `403` — rol distinto de `agente`
+- `404` — viaje no existe en la agencia
+
+---
+
+### GET `/viajes/{viaje_id}/hoteles/{hotel_id}/` `[agente]`
+Detalle de un hotel.
+
+---
+
+### PATCH `/viajes/{viaje_id}/hoteles/{hotel_id}/` `[agente]`
+Actualiza campos del hotel (PATCH parcial).
+
+**Respuesta:** `200 OK` — objeto `Hotel` actualizado
+
+**Errores:**
+- `404` — hotel no pertenece a este viaje/agencia
+
+---
+
+### DELETE `/viajes/{viaje_id}/hoteles/{hotel_id}/` `[agente]`
+Elimina el hotel.
+
+**Respuesta:** `204 No Content`
+
+---
+
 ## Grupos
 
 ### GET `/viajes/{viaje_id}/grupos/` `[agente]`
 Lista grupos del viaje.
 
-### POST `/viajes/{viaje_id}/grupos/` `[agente]`
-Crea grupo. `{ "nombre": "Grupo A", "descripcion": "", "capacidad": 25 }`
-
-### PATCH `/viajes/{viaje_id}/grupos/{grupo_id}/` `[agente]`
-Actualiza grupo.
-
-### POST `/viajes/{viaje_id}/grupos/{grupo_id}/alumnos/` `[agente]`
-Asigna alumnos al grupo. `{ "alumno_ids": ["uuid1", "uuid2"] }`
+**Respuesta:** `200 OK` — array de objetos `Grupo`
+```json
+[
+  {
+    "id": "uuid",
+    "nombre": "Grupo A",
+    "descripcion": "string",
+    "capacidad": 25,
+    "created_at": "2026-06-28T00:00:00Z"
+  }
+]
+```
 
 ---
 
-## Hoteles
+### POST `/viajes/{viaje_id}/grupos/` `[agente]`
+Crea un grupo en el viaje.
 
-### GET `/viajes/{viaje_id}/hoteles/` `[any autenticado]`
-Lista hoteles del viaje.
+**Payload:**
+```json
+{
+  "nombre": "Grupo A",
+  "descripcion": "string (opcional)",
+  "capacidad": 25
+}
+```
+**Respuesta:** `201 Created` — objeto `Grupo` creado
 
-### POST `/viajes/{viaje_id}/hoteles/` `[agente]`
-Crea hotel. `{ "nombre", "descripcion", "tasa_turistica", "fianza", "web_url", "maps_url", "imagen" }`
+**Errores:**
+- `400` — `nombre` ya existe en este viaje
+- `404` — viaje no existe en la agencia
 
-### PATCH `/viajes/{viaje_id}/hoteles/{hotel_id}/` `[agente]`
-Actualiza hotel.
+---
 
-### DELETE `/viajes/{viaje_id}/hoteles/{hotel_id}/` `[agente]`
+### GET `/viajes/{viaje_id}/grupos/{grupo_id}/` `[agente]`
+Detalle de un grupo.
+
+---
+
+### PATCH `/viajes/{viaje_id}/grupos/{grupo_id}/` `[agente]`
+Actualiza campos del grupo (PATCH parcial).
+
+**Errores:**
+- `400` — `nombre` duplicado en este viaje
+- `404` — grupo no pertenece a este viaje/agencia
+
+---
+
+### DELETE `/viajes/{viaje_id}/grupos/{grupo_id}/` `[agente]`
+Elimina el grupo.
+
+**Respuesta:** `204 No Content`
+
+---
+
+### POST `/viajes/{viaje_id}/grupos/{grupo_id}/alumnos/` `[agente]`
+Asigna una lista de alumnos al grupo. La operación es **idempotente**: añadir un alumno ya asignado es un no-op.
+
+**Payload:**
+```json
+{ "alumno_ids": ["uuid1", "uuid2"] }
+```
+
+**Respuesta:** `200 OK`
+```json
+{ "asignados": 2, "total_en_grupo": 3 }
+```
+
+**Errores:**
+- `400` — IDs duplicados en el payload
+- `400` — algún ID no pertenece a un alumno de esta agencia
+- `400` — la asignación excedería la `capacidad` del grupo (si está definida)
+- `404` — viaje o grupo no pertenecen a la agencia
 
 ---
 
 ## Itinerario
 
-### GET `/viajes/{viaje_id}/itinerario/` `[any autenticado]`
-Retorna itinerario completo con etapas y actividades.
+### GET `/viajes/{viaje_id}/itinerario/` `[agente]`
+Retorna el itinerario completo con etapas y actividades anidadas.
 
-### POST `/itinerarios/{itinerario_id}/etapas/` `[agente]`
-Crea etapa. `{ "dia_numero": 1, "titulo": "Llegada", "descripcion": "" }`
+**Respuesta:** `200 OK`
+```json
+{
+  "id": "uuid",
+  "viaje": "uuid",
+  "created_at": "2026-06-28T00:00:00Z",
+  "updated_at": "2026-06-28T00:00:00Z",
+  "etapas": [
+    {
+      "id": "uuid",
+      "dia_numero": 1,
+      "titulo": "Llegada a Madrid",
+      "descripcion": "string",
+      "imagen": "url | null",
+      "actividades": [
+        {
+          "id": "uuid",
+          "hora": "09:00:00 | null",
+          "titulo": "Traslado al hotel",
+          "descripcion": "string",
+          "tipo": "vuelo | bus | hotel | comida | excursion | libre | otro | null",
+          "orden": 0
+        }
+      ]
+    }
+  ]
+}
+```
 
-### PATCH `/etapas/{etapa_id}/` `[agente]`
-Actualiza etapa.
+**Errores:**
+- `401` — sin autenticación
+- `403` — rol distinto de `agente`
+- `404` — viaje no existe en la agencia o itinerario no existe
 
-### DELETE `/etapas/{etapa_id}/` `[agente]`
+---
 
-### POST `/etapas/{etapa_id}/actividades/` `[agente]`
-Crea actividad. `{ "hora": "09:00", "titulo", "tipo", "orden", "descripcion" }`
+### GET `/viajes/{viaje_id}/etapas/` `[agente]`
+Lista las etapas del itinerario (sin actividades anidadas).
 
-### PATCH `/actividades/{actividad_id}/` `[agente]`
+**Respuesta:** `200 OK` — array de objetos `EtapaItinerario`
 
-### DELETE `/actividades/{actividad_id}/` `[agente]`
+---
 
-### PATCH `/actividades/reordenar/` `[agente]`
-Reordena en bloque. `{ "actividades": [{"id": "uuid", "orden": 1}, ...] }`
+### POST `/viajes/{viaje_id}/etapas/` `[agente]`
+Crea una nueva etapa en el itinerario.
+
+**Payload:**
+```json
+{
+  "dia_numero": 1,
+  "titulo": "Llegada a Madrid",
+  "descripcion": "string (opcional)",
+  "imagen": "file (multipart, opcional)"
+}
+```
+
+**Respuesta:** `201 Created` — objeto `EtapaItinerario` creado
+
+**Errores:**
+- `400` — `dia_numero` ya existe en este itinerario
+- `400` — `dia_numero` < 1
+
+---
+
+### GET `/viajes/{viaje_id}/etapas/{etapa_id}/` `[agente]`
+Detalle de una etapa.
+
+---
+
+### PATCH `/viajes/{viaje_id}/etapas/{etapa_id}/` `[agente]`
+Actualiza campos de la etapa (PATCH parcial).
+
+**Payload:** cualquier subconjunto de `{ "dia_numero", "titulo", "descripcion", "imagen" }`
+
+**Errores:**
+- `400` — `dia_numero` ya existe en este itinerario
+
+---
+
+### DELETE `/viajes/{viaje_id}/etapas/{etapa_id}/` `[agente]`
+Elimina la etapa y todas sus actividades (CASCADE).
+
+**Respuesta:** `204 No Content`
+
+---
+
+### GET `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/` `[agente]`
+Lista actividades de la etapa, ordenadas por `orden`, `hora`.
+
+---
+
+### POST `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/` `[agente]`
+Crea una actividad en la etapa.
+
+**Payload:**
+```json
+{
+  "titulo": "Traslado al hotel",
+  "hora": "09:00 (opcional)",
+  "descripcion": "string (opcional)",
+  "tipo": "vuelo | bus | hotel | comida | excursion | libre | otro (opcional)"
+}
+```
+
+> `orden` es ignorado en este endpoint — se asigna automáticamente (default 0).
+
+**Respuesta:** `201 Created`
+
+---
+
+### GET `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/{actividad_id}/` `[agente]`
+Detalle de una actividad.
+
+---
+
+### PATCH `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/{actividad_id}/` `[agente]`
+Actualiza campos de la actividad (PATCH parcial). El campo `orden` es **read-only** y será ignorado.
+
+**Payload:** cualquier subconjunto de `{ "titulo", "hora", "descripcion", "tipo" }`
+
+---
+
+### DELETE `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/{actividad_id}/` `[agente]`
+Elimina la actividad.
+
+**Respuesta:** `204 No Content`
+
+---
+
+### PATCH `/viajes/{viaje_id}/etapas/{etapa_id}/actividades/reordenar/` `[agente]`
+Actualiza el campo `orden` de múltiples actividades en una sola transacción. Es el **único** endpoint que modifica `orden`.
+
+**Payload:**
+```json
+{
+  "actividades": [
+    { "id": "uuid", "orden": 0 },
+    { "id": "uuid", "orden": 1 },
+    { "id": "uuid", "orden": 2 }
+  ]
+}
+```
+
+**Respuesta:** `200 OK` — array completo de actividades de la etapa con `orden` actualizado
+
+**Errores:**
+- `400` — IDs duplicados en el payload
+- `400` — algún ID no pertenece a esta etapa
+- `400` — payload `actividades` vacío
 
 ---
 

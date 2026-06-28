@@ -170,3 +170,36 @@ del alcance de los tests unitarios/integración actuales.
 Añadir suite de tests E2E (ej: con `docker compose run` y un script de smoke tests) que
 verifique el flujo completo: login → cookie → Gateway → Django → respuesta autenticada.
 Sugerido para TASK-017+ (cuando el proxy Django esté implementado).
+
+---
+
+### TD-007: Fragmentación de Routing en Viajes (Alumnos)
+**Estado:** Activa
+**Prioridad:** Media
+**Detectado en:** TASK-028 (2026-06-28)
+
+**Descripción:**
+lumnos_urls.py rompe ligeramente la uniformidad del dominio REST, al crear un sub-router paralelo en vez de anidarlo bajo /viajes/alumnos/ o /viajes/{viaje_id}/alumnos/.
+
+**Impacto:**
+- Deuda arquitectónica de coherencia REST. Podría causar fragmentación y pérdida de trazabilidad si otros módulos transversales hacen lo mismo.
+
+**Tarea sugerida:**
+Consolidar el routing bajo /api/v1/viajes/alumnos/ o similar en el futuro, modificando las rutas y tests correspondientes.
+
+---
+
+### TD-008: Relación M2M prematura (Alumnos-Grupos) y falta de prefetch
+**Estado:** Activa
+**Prioridad:** Baja
+**Detectado en:** TASK-028 (2026-06-28)
+
+**Descripción:**
+La relación M2M entre Alumno y Grupo se introdujo anticipadamente. Aunque es funcional, podría implicar acoplamiento innecesario y requerir reestructuración en la TASK-033. Además, falta prefetch_related('grupos') en las vistas AlumnoListCreateView y AlumnoRetrieveUpdateView para optimizar consultas futuras.
+
+**Impacto:**
+- Performance: Puede haber queries N+1 si se listan los grupos en el serializer sin el prefetch.
+- Diseño: Puede requerir ajustes cuando se aborde la lógica completa de Inscripciones y Grupos.
+
+**Tarea sugerida:**
+Añadir prefetch_related('grupos') cuando los grupos se empiecen a serializar y revisar la estructura M2M en TASK-033.
