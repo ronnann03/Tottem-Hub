@@ -586,7 +586,7 @@ Proxy que reenvía requests al backend Django. Parseo de multipart/form-data par
 
 ### TASK-018
 **Nombre:** Next.js project setup + TailwindCSS 4 + route groups  
-**Estado:** `Pending`  
+**Estado:** `Done`  
 **Prioridad:** Alta  
 **Estimación:** 2h  
 **Dependencias:** TASK-001
@@ -594,22 +594,22 @@ Proxy que reenvía requests al backend Django. Parseo de multipart/form-data par
 **Descripción:**  
 Inicializar Next.js 16.2.6 con App Router. Configurar TailwindCSS 4 con `@theme {}` en `globals.css`. Crear la estructura de route groups: `(public)`, `(padre)`, `(alumno)`, `(agente)`.
 
-**Archivos afectados:**
-- `frontend/app/layout.tsx`
-- `frontend/app/globals.css`
-- `frontend/app/(public)/layout.tsx`
-- `frontend/app/(padre)/layout.tsx`
-- `frontend/app/(alumno)/layout.tsx`
-- `frontend/app/(agente)/layout.tsx`
-- `frontend/package.json`
+**Archivos creados/modificados:**
+- `frontend/app/layout.tsx` y `page.tsx`
+- `frontend/app/globals.css` (con TailwindCSS `@theme`)
+- `frontend/app/(public)/layout.tsx` y `viajes/page.tsx`
+- `frontend/app/(padre)/layout.tsx` y `app/page.tsx`
+- `frontend/app/(alumno)/layout.tsx` y `app/alumno/page.tsx`
+- `frontend/app/(agente)/layout.tsx` y `backoffice/page.tsx`
+- `frontend/next.config.js`, `postcss.config.mjs`, `tsconfig.json`, `.eslintrc.json`
 
 **Criterios de aceptación:**
-- [ ] Next.js 16.2.6 instalado
-- [ ] App Router (no Pages Router)
-- [ ] TailwindCSS 4 con `@theme {}` en `globals.css` (sin `tailwind.config.js` para tokens)
-- [ ] Design tokens base: `--color-primary`, `--color-warning`, `--radius-card`
-- [ ] Los 4 route groups creados con sus layouts vacíos
-- [ ] `npx tsc --noEmit` sin errores
+- [x] Next.js 16.2.6 instalado
+- [x] App Router (no Pages Router)
+- [x] TailwindCSS 4 con `@theme {}` en `globals.css` (sin `tailwind.config.js` para tokens)
+- [x] Design tokens base: `--color-primary`, `--color-warning`, `--radius-card`
+- [x] Los 4 route groups creados con sus layouts vacíos
+- [x] `npm run build` (`next build` / TypeScript) sin errores
 
 ---
 
