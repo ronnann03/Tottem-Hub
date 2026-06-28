@@ -683,13 +683,13 @@ Crear la app `viajes` con los modelos `Viaje`, `PlanPago` y `Cuota` según `DATA
 - `backend/apps/viajes/migrations/0001_initial.py`
 
 **Criterios de aceptación:**
-- [ ] Constraint BD: `fecha_regreso > fecha_salida`
-- [ ] Constraint BD: `Cuota.importe > 0`
-- [ ] `PlanPago` es OneToOne con `Viaje`
-- [ ] `Cuota` unique_together `(plan_pago, numero_cuota)`
-- [ ] `EstadoViaje` TextChoices: borrador, activo, cerrado, archivado
-- [ ] UUID como PK en todos los modelos
-- [ ] Índices declarados según `DATABASE.md`
+- [x] Constraint BD: `fecha_regreso > fecha_salida`
+- [x] Constraint BD: `Cuota.importe > 0`
+- [x] `PlanPago` es OneToOne con `Viaje`
+- [x] `Cuota` unique_together `(plan_pago, numero_cuota)`
+- [x] `EstadoViaje` TextChoices: borrador, activo, cerrado, archivado
+- [x] UUID como PK en todos los modelos
+- [x] Índices declarados según `DATABASE.md`
 
 ---
 

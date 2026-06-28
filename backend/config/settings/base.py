@@ -67,6 +67,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS: list[str] = [
     "apps.agencias",        # TASK-005 — Tenant raíz
     "apps.autenticacion",   # TASK-006 — Modelo Usuario custom
+    "apps.viajes",          # TASK-021 — Modelos de viajes
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
