@@ -40,3 +40,23 @@ class NotificacionMarcarTodasView(APIView):
     def post(self, request):
         Notificacion.objects.filter(usuario=request.user, leida=False).update(leida=True)
         return Response({'detail': 'Todas las notificaciones marcadas como leidas.'}, status=status.HTTP_200_OK)
+
+
+from .models import PreferenciasNotificacion
+from .serializers import PreferenciasNotificacionSerializer
+
+
+class PreferenciasNotificacionView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = PreferenciasNotificacionSerializer
+
+    def get(self, request):
+        prefs, _ = PreferenciasNotificacion.objects.get_or_create(usuario=request.user)
+        return Response(PreferenciasNotificacionSerializer(prefs).data)
+
+    def patch(self, request):
+        prefs, _ = PreferenciasNotificacion.objects.get_or_create(usuario=request.user)
+        serializer = PreferenciasNotificacionSerializer(prefs, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
