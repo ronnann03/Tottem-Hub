@@ -72,6 +72,7 @@ LOCAL_APPS: list[str] = [
     "apps.inscripciones",    # TASK-032 - Alumno, PadreTutor, Inscripcion
     "apps.pagos",            # TASK-035 - Modelo Pago
     "apps.documentos",       # TASK-037 - DocumentoEntregado
+    "apps.notificaciones",   # TASK-039 - Notificacion
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

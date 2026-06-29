@@ -35,10 +35,11 @@ urlpatterns = [
     path("api/v1/pagos/", include("apps.pagos.urls")),  # TASK-035
     path("api/v1/documentos/", include("apps.documentos.urls")),  # TASK-037
     # TASK-050+: path("api/v1/comunicados/", include("apps.comunicados.urls")),
-    # TASK-058+: path("api/v1/notificaciones/", include("apps.notificaciones.urls")),
+    path("api/v1/notificaciones/", include("apps.notificaciones.urls")),  # TASK-039
     path("api/v1/agencias/", include("apps.agencias.urls")),   # TASK-012
     # TASK-055+: path("api/v1/mecenas/", include("apps.mecenas.urls")),
 ]
+
 
 
 
