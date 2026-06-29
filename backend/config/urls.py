@@ -1,7 +1,4 @@
-﻿"""
-config/urls.py - Enrutador raiz de la API.
-"""
-from django.contrib import admin
+﻿from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import include, path
 
@@ -21,4 +18,5 @@ urlpatterns = [
     path("api/v1/notificaciones/", include("apps.notificaciones.urls")),
     path("api/v1/agencias/", include("apps.agencias.urls")),
     path("api/v1/mecenas/", include("apps.mecenas.urls")),
+    path("api/v1/viajes/", include("apps.exportaciones.urls")),
 ]

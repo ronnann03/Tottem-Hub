@@ -39,3 +39,4 @@ flake8>=7.0.0
 # --- Exportaciones (Fase F — descomentar cuando aplique) ---
 # openpyxl>=3.1.0
 # weasyprint>=60.0
+openpyxl==3.1.5
