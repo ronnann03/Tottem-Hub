@@ -28,3 +28,46 @@ class DocumentoEntregadoCreateView(generics.GenericAPIView):
             qs = qs.filter(inscripcion__padre_tutor__usuario=request.user)
         serializer = DocumentoEntregadoDetalleSerializer(qs, many=True)
         return Response(serializer.data)
+
+
+from django.utils import timezone
+from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
+from apps.viajes.permissions import EsAgente
+from apps.auditoria.models import LogAuditoria
+
+
+class DocumentoValidarRechazarView(generics.GenericAPIView):
+    permission_classes = [IsAuthenticated, EsAgente]
+
+    def patch(self, request, pk):
+        try:
+            doc = DocumentoEntregado.objects.select_related(
+                'inscripcion__padre_tutor__usuario', 'documento_requerido'
+            ).get(pk=pk)
+        except DocumentoEntregado.DoesNotExist:
+            raise NotFound('Documento no encontrado.')
+        nuevo_estado = request.data.get('estado')
+        if nuevo_estado not in ['validado', 'rechazado']:
+            raise ValidationError({'estado': 'Debe ser validado o rechazado.'})
+        estado_anterior = doc.estado
+        doc.estado = nuevo_estado
+        if nuevo_estado == 'validado':
+            doc.validado_por = request.user
+            doc.fecha_validacion = timezone.now()
+            doc.motivo_rechazo = ''
+        elif nuevo_estado == 'rechazado':
+            motivo = request.data.get('motivo_rechazo', '')
+            if not motivo:
+                raise ValidationError({'motivo_rechazo': 'El motivo de rechazo es requerido.'})
+            doc.motivo_rechazo = motivo
+        doc.save()
+        LogAuditoria.objects.create(
+            usuario=request.user,
+            accion='DOCUMENTO_' + nuevo_estado.upper(),
+            modelo='DocumentoEntregado',
+            objeto_id=doc.id,
+            valor_anterior={'estado': estado_anterior},
+            valor_nuevo={'estado': nuevo_estado},
+            ip=request.META.get('REMOTE_ADDR')
+        )
+        return Response(DocumentoEntregadoDetalleSerializer(doc).data)
