@@ -8,6 +8,7 @@ from apps.pagos.models import Pago
 from apps.documentos.models import DocumentoEntregado
 from .generators.csv import exportar_inscritos_csv, exportar_pagos_csv, exportar_documentacion_csv
 from .generators.xlsx import exportar_inscritos_xlsx, exportar_pagos_xlsx, exportar_documentacion_xlsx
+from .generators.pdf import exportar_informe_pdf, exportar_ficha_pdf
 
 
 class ExportarInscritosView(APIView):
@@ -53,3 +54,26 @@ class ExportarDocumentacionView(APIView):
         if formato == 'xlsx':
             return exportar_documentacion_xlsx(documentos)
         return exportar_documentacion_csv(documentos)
+
+
+class ExportarInformePDFView(APIView):
+    permission_classes = [IsAuthenticated, EsAgente]
+
+    def get(self, request, viaje_id):
+        try:
+            viaje = Viaje.objects.get(id=viaje_id)
+        except Viaje.DoesNotExist:
+            raise NotFound('Viaje no encontrado.')
+        inscripciones = Inscripcion.objects.filter(viaje=viaje).select_related('alumno', 'padre_tutor__usuario')
+        return exportar_informe_pdf(viaje, inscripciones)
+
+
+class ExportarFichaPDFView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, inscripcion_id):
+        try:
+            inscripcion = Inscripcion.objects.select_related('viaje', 'alumno', 'padre_tutor__usuario').get(id=inscripcion_id)
+        except Inscripcion.DoesNotExist:
+            raise NotFound('Inscripcion no encontrada.')
+        return exportar_ficha_pdf(inscripcion)

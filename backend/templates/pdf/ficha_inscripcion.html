@@ -1,0 +1,31 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 40px; }
+  h1 { color: #1a56db; font-size: 18px; }
+  h2 { color: #1a56db; font-size: 13px; border-bottom: 1px solid #1a56db; padding-bottom: 3px; margin-top: 20px; }
+  .fila { margin-bottom: 6px; }
+  .campo { color: #666; font-size: 11px; }
+  .valor { font-size: 11px; font-weight: bold; }
+  .footer { margin-top: 40px; text-align: center; color: #999; font-size: 10px; border-top: 1px solid #eee; padding-top: 12px; }
+</style>
+</head>
+<body>
+  <h1>Ficha de Inscripcion</h1>
+  <h2>Viaje</h2>
+  <div class="fila"><span class="campo">Nombre: </span><span class="valor">{{ inscripcion.viaje.nombre }}</span></div>
+  <div class="fila"><span class="campo">Destino: </span><span class="valor">{{ inscripcion.viaje.destino }}</span></div>
+  <div class="fila"><span class="campo">Fechas: </span><span class="valor">{{ inscripcion.viaje.fecha_salida }} al {{ inscripcion.viaje.fecha_regreso }}</span></div>
+  <h2>Alumno</h2>
+  <div class="fila"><span class="campo">Nombre: </span><span class="valor">{{ inscripcion.alumno.nombre }} {{ inscripcion.alumno.apellidos }}</span></div>
+  <div class="fila"><span class="campo">DNI: </span><span class="valor">{{ inscripcion.alumno.dni }}</span></div>
+  <h2>Estado</h2>
+  <div class="fila"><span class="campo">Estado: </span><span class="valor">{{ inscripcion.estado }}</span></div>
+  <div class="fila"><span class="campo">Precio total: </span><span class="valor">S/ {{ inscripcion.precio_final }}</span></div>
+  <div class="fila"><span class="campo">Total pagado: </span><span class="valor">S/ {{ inscripcion.total_pagado }}</span></div>
+  <div class="fila"><span class="campo">Saldo pendiente: </span><span class="valor">S/ {{ inscripcion.saldo_pendiente }}</span></div>
+  <div class="footer">Tottem Hub - Generado el {{ fecha_generacion }}</div>
+</body>
+</html>
