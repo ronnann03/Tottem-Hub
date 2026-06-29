@@ -2,13 +2,13 @@
 import { FormularioPago } from '@/components/padre/FormularioPago'
 
 async function getInscripcion(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/inscripciones/${id}/`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/inscripciones/${id}/`, { cache: 'no-store' })
   if (!res.ok) return null
   return res.json()
 }
 
 async function getCuotas(viajeId: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/plan-pago/`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/viajes/${viajeId}/plan-pago/`, { cache: 'no-store' })
   if (!res.ok) return []
   const data = await res.json()
   return data.cuotas ?? []

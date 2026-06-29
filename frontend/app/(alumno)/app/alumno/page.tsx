@@ -1,5 +1,5 @@
 ﻿async function getInscripcionAlumno() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/inscripciones/`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/inscripciones/`, { cache: 'no-store' })
   if (!res.ok) return null
   const data = await res.json()
   return data[0] ?? null

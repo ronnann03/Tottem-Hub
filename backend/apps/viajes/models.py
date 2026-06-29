@@ -1,4 +1,4 @@
-﻿import uuid
+import uuid
 from django.db import models
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
@@ -12,11 +12,11 @@ class EstadoViaje(models.TextChoices):
 
 
 class TipoActividad(models.TextChoices):
-    VUELO = "vuelo", _("Vuelo / Traslado aÃ©reo")
+    VUELO = "vuelo", _("Vuelo / Traslado aéreo")
     BUS = "bus", _("Transporte terrestre")
     HOTEL = "hotel", _("Alojamiento / Check-in")
     COMIDA = "comida", _("Comidas (Desayuno, Almuerzo, Cena)")
-    EXCURSION = "excursion", _("ExcursiÃ³n / Tour")
+    EXCURSION = "excursion", _("Excursión / Tour")
     LIBRE = "libre", _("Tiempo libre")
     OTRO = "otro", _("Otra actividad")
 
@@ -40,6 +40,9 @@ class Viaje(models.Model):
         choices=EstadoViaje.choices,
         default=EstadoViaje.BORRADOR
     )
+    colegio = models.CharField(max_length=200, blank=True, default="")
+    nivel_educativo = models.CharField(max_length=50, blank=True, default="")
+    grado = models.CharField(max_length=50, blank=True, default="")
     slug = models.SlugField(max_length=100, unique=True, blank=True)
     codigo = models.CharField(max_length=20, unique=True, blank=True)
     imagen = models.ImageField(
@@ -94,7 +97,7 @@ class PlanPago(models.Model):
         Verifica si el plan de pagos posee pagos con estado 'verificado'.
         Actualmente retorna False hasta que se implemente la app Pagos.
         """
-        # TODO: Implementar validaciÃ³n real cuando exista la app Pagos (TASK-036)  # noqa: E501
+        # TODO: Implementar validación real cuando exista la app Pagos (TASK-036)  # noqa: E501
         # return self.cuotas.filter(pagos__estado='verificado').exists()
         return False
 
@@ -171,7 +174,7 @@ class EtapaItinerario(models.Model):
         ordering = ["dia_numero"]
 
     def __str__(self):
-        return f"DÃ­a {self.dia_numero} - {self.titulo}"
+        return f"Día {self.dia_numero} - {self.titulo}"
 
 
 class Actividad(models.Model):
@@ -276,8 +279,8 @@ class Alumno(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    # Preparado para futura relaciÃ³n con Grupo si el diseÃ±o lo requiere,
-    # aunque normalmente la relaciÃ³n Alumno-Grupo pasa por Inscripcion.
+    # Preparado para futura relación con Grupo si el diseño lo requiere,
+    # aunque normalmente la relación Alumno-Grupo pasa por Inscripcion.
     grupos = models.ManyToManyField(
         Grupo,
         blank=True,

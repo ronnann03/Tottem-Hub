@@ -1,5 +1,7 @@
 from django.urls import path
 from .views import (
+    ViajePublicoListView,
+    ViajePublicoDetailView,
     DocumentoRequeridoListCreateView,
     DocumentoRequeridoRetrieveUpdateDestroyView,
     ViajeListCreateView,
@@ -44,4 +46,7 @@ urlpatterns = [
     path('<uuid:viaje_id>/grupos/', GrupoListCreateView.as_view(), name='viaje-grupos'),
     path('<uuid:viaje_id>/grupos/<uuid:grupo_id>/', GrupoRetrieveUpdateDestroyView.as_view(), name='viaje-grupo-detail'),  # noqa: E501
     path('<uuid:viaje_id>/grupos/<uuid:grupo_id>/alumnos/', GrupoAsignarAlumnosView.as_view(), name='viaje-grupo-alumnos'),  # noqa: E501
+    # Endpoints públicos (sin autenticación)
+    path('publico/', ViajePublicoListView.as_view(), name='viajes-publico-list'),
+    path('publico/<slug:slug>/', ViajePublicoDetailView.as_view(), name='viajes-publico-detail'),
 ]

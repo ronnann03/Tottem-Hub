@@ -226,7 +226,9 @@ class LoginAPIView(APIView):
 
         # ── Generar par JWT ───────────────────────────────────────────────────
         refresh = RefreshToken.for_user(usuario)
+        refresh["role"] = usuario.rol
         access = refresh.access_token
+        access["role"] = usuario.rol
 
         # ── Allowlist Redis ───────────────────────────────────────────────────
         jti = str(refresh["jti"])
@@ -344,6 +346,7 @@ class RefreshAPIView(APIView):
 
         # ── 5: Nuevo access token (refresh sin rotar — DEC-003) ───────────────
         access = refresh.access_token
+        access["role"] = usuario.rol
         access_ttl = int(settings.SIMPLE_JWT["ACCESS_TOKEN_LIFETIME"].total_seconds())
 
         logger.info("Access token renovado: %s", usuario.email)

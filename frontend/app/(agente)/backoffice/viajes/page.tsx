@@ -2,7 +2,7 @@
 import { Badge } from '@/components/ui/Badge'
 
 async function getViajes() {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/viajes/`, { cache: 'no-store' })
   if (!res.ok) return []
   const data = await res.json()
   return data.results ?? data

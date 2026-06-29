@@ -3,7 +3,8 @@ import { ItinerarioResumen } from '@/components/public/ItinerarioResumen'
 import Link from 'next/link'
 
 async function getViaje(slug: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/?slug=${slug}`, { cache: 'no-store' })
+  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || (process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)
+  const res = await fetch(`${gatewayUrl}/api/v1/viajes/publico/?slug=${slug}`, { cache: 'no-store' })
   if (!res.ok) return null
   const data = await res.json()
   return data.results?.[0] ?? null

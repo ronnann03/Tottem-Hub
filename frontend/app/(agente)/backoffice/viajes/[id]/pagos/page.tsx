@@ -2,13 +2,13 @@
 import Link from 'next/link'
 
 async function getPagos(viajeId: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/pagos/?viaje_id=${viajeId}&estado=pendiente`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/pagos/?viaje_id=${viajeId}&estado=pendiente`, { cache: 'no-store' })
   if (!res.ok) return []
   return res.json()
 }
 
 async function getViaje(id: string) {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${id}/`, { cache: 'no-store' })
+  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/viajes/${id}/`, { cache: 'no-store' })
   if (!res.ok) return null
   return res.json()
 }

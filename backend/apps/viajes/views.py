@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, mixins, status
 from rest_framework.exceptions import ValidationError as DRFValidationError, NotFound
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import Http404
 from .models import Viaje, PlanPago, Alumno, Itinerario, EtapaItinerario, Actividad, Hotel, Grupo, DocumentoRequerido
 from .serializers import (
@@ -488,3 +488,26 @@ class DocumentoRequeridoRetrieveUpdateDestroyView(generics.GenericAPIView):
     def delete(self, request, viaje_id, documento_id):
         self._get_documento().delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ViajePublicoListView(generics.ListAPIView):
+    """Endpoint público para listar viajes publicados (sin autenticación)."""
+    serializer_class = ViajeSerializer
+    permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        qs = Viaje.objects.filter(estado='publicado').select_related('agencia').order_by('fecha_salida')
+        slug = self.request.query_params.get('slug')
+        if slug:
+            qs = qs.filter(slug=slug)
+        return qs
+
+
+class ViajePublicoDetailView(generics.RetrieveAPIView):
+    """Endpoint público para ver detalle de un viaje publicado (sin autenticación)."""
+    serializer_class = ViajeSerializer
+    permission_classes = [AllowAny]
+    lookup_field = 'slug'
+
+    def get_queryset(self):
+        return Viaje.objects.filter(estado='publicado').select_related('agencia')

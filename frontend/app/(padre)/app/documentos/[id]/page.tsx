@@ -2,8 +2,8 @@
 
 async function getData(id: string) {
   const [insRes, docsRes] = await Promise.all([
-    fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/inscripciones/${id}/`, { cache: 'no-store' }),
-    fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/documentos/?inscripcion_id=${id}`, { cache: 'no-store' }),
+    fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/inscripciones/${id}/`, { cache: 'no-store' }),
+    fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/documentos/?inscripcion_id=${id}`, { cache: 'no-store' }),
   ])
   const inscripcion = insRes.ok ? await insRes.json() : null
   const documentos = docsRes.ok ? await docsRes.json() : []
