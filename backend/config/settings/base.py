@@ -183,6 +183,7 @@ USE_TZ = True  # Siempre True â€” almacenar timestamps en UTC
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "mediafiles"
@@ -481,7 +482,7 @@ JAZZMIN_SETTINGS = {
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",
     "related_modal_active": True,
-    "custom_css": None,
+    "custom_css": "admin/css/tottem_admin.css",
     "custom_js": None,
     "use_google_fonts_cdn": False,
     "show_ui_builder": False,
@@ -521,6 +522,7 @@ JAZZMIN_UI_TWEAKS = {
         "success": "btn-success",
     },
 }
+
 
 
 
