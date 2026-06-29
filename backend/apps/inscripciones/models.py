@@ -26,6 +26,25 @@ class Alumno(models.Model):
         null=True, blank=True,
         related_name='alumnos_inscritos'
     )
+    genero = models.CharField(max_length=20, choices=[('masculino','Masculino'),('femenino','Femenino'),('otro','Otro')], blank=True)
+    colegio = models.CharField(max_length=200, blank=True)
+    departamento = models.CharField(max_length=100, blank=True)
+    nivel_educativo = models.CharField(max_length=20, blank=True)
+    grado = models.CharField(max_length=10, blank=True)
+    alergeno_gluten = models.BooleanField(default=False)
+    alergeno_crustaceos = models.BooleanField(default=False)
+    alergeno_huevos = models.BooleanField(default=False)
+    alergeno_pescado = models.BooleanField(default=False)
+    alergeno_cacahuetes = models.BooleanField(default=False)
+    alergeno_soja = models.BooleanField(default=False)
+    alergeno_lacteos = models.BooleanField(default=False)
+    alergeno_frutos_cascara = models.BooleanField(default=False)
+    alergeno_apio = models.BooleanField(default=False)
+    alergeno_mostaza = models.BooleanField(default=False)
+    alergeno_sesamo = models.BooleanField(default=False)
+    alergeno_sulfitos = models.BooleanField(default=False)
+    alergeno_altramuces = models.BooleanField(default=False)
+    alergeno_moluscos = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -49,6 +68,25 @@ class Inscripcion(models.Model):
     )
     notas_internas = models.TextField(blank=True)
     precio_final = models.DecimalField(max_digits=10, decimal_places=2)
+    genero = models.CharField(max_length=20, choices=[('masculino','Masculino'),('femenino','Femenino'),('otro','Otro')], blank=True)
+    colegio = models.CharField(max_length=200, blank=True)
+    departamento = models.CharField(max_length=100, blank=True)
+    nivel_educativo = models.CharField(max_length=20, blank=True)
+    grado = models.CharField(max_length=10, blank=True)
+    alergeno_gluten = models.BooleanField(default=False)
+    alergeno_crustaceos = models.BooleanField(default=False)
+    alergeno_huevos = models.BooleanField(default=False)
+    alergeno_pescado = models.BooleanField(default=False)
+    alergeno_cacahuetes = models.BooleanField(default=False)
+    alergeno_soja = models.BooleanField(default=False)
+    alergeno_lacteos = models.BooleanField(default=False)
+    alergeno_frutos_cascara = models.BooleanField(default=False)
+    alergeno_apio = models.BooleanField(default=False)
+    alergeno_mostaza = models.BooleanField(default=False)
+    alergeno_sesamo = models.BooleanField(default=False)
+    alergeno_sulfitos = models.BooleanField(default=False)
+    alergeno_altramuces = models.BooleanField(default=False)
+    alergeno_moluscos = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -77,3 +115,4 @@ class Inscripcion(models.Model):
 
     def __str__(self):
         return str(self.alumno) + ' - ' + str(self.viaje)
+
