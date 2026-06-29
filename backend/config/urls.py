@@ -20,4 +20,6 @@ urlpatterns = [
     path("api/v1/mecenas/", include("apps.mecenas.urls")),
     path("api/v1/viajes/", include("apps.exportaciones.urls")),
     path("api/v1/colegios/", include("apps.colegios.urls")),
+    path("api/v1/chat/", include("apps.chat.urls")),
 ]
+
