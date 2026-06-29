@@ -66,6 +66,7 @@ class Inscripcion(models.Model):
         choices=[('pendiente','Pendiente'),('confirmado','Confirmado'),('cancelado','Cancelado'),('baja','Baja')],
         default='pendiente'
     )
+    acceso_alumno_habilitado = models.BooleanField(default=False)
     hotel_asignado = models.ForeignKey('viajes.Hotel', on_delete=models.SET_NULL, null=True, blank=True, related_name='inscripciones')
     notas_internas = models.TextField(blank=True)
     precio_final = models.DecimalField(max_digits=10, decimal_places=2)
@@ -116,5 +117,6 @@ class Inscripcion(models.Model):
 
     def __str__(self):
         return str(self.alumno) + ' - ' + str(self.viaje)
+
 
 
