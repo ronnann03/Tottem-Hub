@@ -399,3 +399,57 @@ class LogoutAPIView(APIView):
         response.delete_cookie("access_token", path="/", samesite="Strict")
         response.delete_cookie("refresh_token", path="/api/v1/auth/", samesite="Strict")
         return response
+
+
+from django.contrib.auth.tokens import PasswordResetTokenGenerator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.core.mail import send_mail
+from django.conf import settings
+
+
+class PasswordResetRequestView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        email = request.data.get('email', '').strip()
+        try:
+            from apps.autenticacion.models import Usuario
+            usuario = Usuario.objects.get(email=email)
+        except Usuario.DoesNotExist:
+            return Response({'detail': 'Si el email existe, recibirás un enlace.'})
+        token_gen = PasswordResetTokenGenerator()
+        token = token_gen.make_token(usuario)
+        uid = urlsafe_base64_encode(force_bytes(usuario.pk))
+        reset_url = f"{settings.FRONTEND_URL}/auth/reset-password/{uid}/{token}/"
+        send_mail(
+            subject='Recuperacion de contrasena - Tottem Hub',
+            message=f'Haz click en el siguiente enlace para restablecer tu contrasena: {reset_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=True,
+        )
+        return Response({'detail': 'Si el email existe, recibirás un enlace.'})
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = []
+
+    def post(self, request):
+        uid = request.data.get('uid', '')
+        token = request.data.get('token', '')
+        nueva_password = request.data.get('nueva_password', '')
+        if not uid or not token or not nueva_password:
+            return Response({'error': 'Datos incompletos.'}, status=400)
+        try:
+            from apps.autenticacion.models import Usuario
+            pk = force_str(urlsafe_base64_decode(uid))
+            usuario = Usuario.objects.get(pk=pk)
+        except Exception:
+            return Response({'error': 'Token invalido.'}, status=400)
+        token_gen = PasswordResetTokenGenerator()
+        if not token_gen.check_token(usuario, token):
+            return Response({'error': 'Token invalido o expirado.'}, status=400)
+        usuario.set_password(nueva_password)
+        usuario.save()
+        return Response({'detail': 'Contrasena actualizada correctamente.'})
