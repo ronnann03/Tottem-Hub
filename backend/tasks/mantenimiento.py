@@ -51,3 +51,43 @@ def archivar_viajes_finalizados(self):
         estado='activo'
     ).update(estado='archivado')
     return 'OK: ' + str(actualizados) + ' viajes archivados'
+
+@shared_task(bind=True, max_retries=3)
+def alerta_docs_umbral(self):
+    from apps.viajes.models import Viaje, DocumentoRequerido
+    from apps.documentos.models import DocumentoEntregado
+    from apps.notificaciones.models import Notificacion
+    from apps.autenticacion.models import Usuario
+    umbral = getattr(settings, 'DOC_INCOMPLETE_ALERT_THRESHOLD', 50)
+    viajes = Viaje.objects.filter(estado='activo').prefetch_related('inscripciones', 'documentos_requeridos')
+    for viaje in viajes:
+        total_requeridos = viaje.documentos_requeridos.count()
+        if total_requeridos == 0:
+            continue
+        inscripciones = viaje.inscripciones.filter(estado__in=['pendiente', 'confirmado'])
+        total_esperados = total_requeridos * inscripciones.count()
+        if total_esperados == 0:
+            continue
+        total_validados = DocumentoEntregado.objects.filter(
+            inscripcion__in=inscripciones,
+            documento_requerido__viaje=viaje,
+            estado='validado'
+        ).count()
+        porcentaje_incompleto = round((1 - total_validados / total_esperados) * 100, 1)
+        if porcentaje_incompleto < umbral:
+            continue
+        cache_key = 'alerta_docs:' + str(viaje.id) + ':' + str(date.today())
+        if cache.get(cache_key):
+            continue
+        agentes = Usuario.objects.filter(agencia=viaje.agencia, rol='agente')
+        for agente in agentes:
+            Notificacion.objects.create(
+                usuario=agente,
+                tipo='recordatorio',
+                titulo='Documentacion incompleta: ' + viaje.nombre,
+                mensaje=str(porcentaje_incompleto) + '% de documentos pendientes en ' + viaje.nombre,
+                referencia_id=viaje.id,
+                referencia_tipo='Viaje'
+            )
+        cache.set(cache_key, True, timeout=86400)
+    return 'OK'
