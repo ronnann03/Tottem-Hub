@@ -44,7 +44,7 @@ export default function InscribirPage() {
   useEffect(() => {
     async function fetchViaje() {
       try {
-        const res = await fetchApi(`/api/v1/viajes/${viaje_id}/`)
+        const res = await fetchApi(`/api/v1/viajes/publico/${viaje_id}/`)
         if (res) {
           setViaje(res)
         }

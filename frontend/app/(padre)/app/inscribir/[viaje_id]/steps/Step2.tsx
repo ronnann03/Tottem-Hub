@@ -38,7 +38,7 @@ export function Step2({ data, onChange }: Step2Props) {
         </div>
       </div>
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-        <p className="font-semibold mb-1">Validacion inteligente</p>
+        <p className="font-semibold mb-1">Antes de continuar</p>
         <p>Verificaremos que el colegio y grado correspondan al viaje seleccionado.</p>
       </div>
     </div>

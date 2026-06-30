@@ -7,15 +7,21 @@ from datetime import date
 
 
 class ViajeSerializer(serializers.ModelSerializer):
+    inscripciones_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Viaje
         fields = [
             'id', 'agencia', 'nombre', 'destino', 'fecha_salida',
             'fecha_regreso', 'descripcion', 'cupo_maximo',
             'precio_total', 'estado', 'imagen', 'duracion_dias',
+            'inscripciones_count',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'agencia', 'estado', 'created_at', 'updated_at']  # noqa: E501
+
+    def get_inscripciones_count(self, obj):
+        return obj.inscripciones.count()
 
     def validate(self, data):
         """

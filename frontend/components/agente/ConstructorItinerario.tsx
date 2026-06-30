@@ -44,8 +44,9 @@ export function ConstructorItinerario({ etapasIniciales, viajeId }: ConstructorI
     const nuevasActividades = arrayMove(etapa.actividades, oldIndex, newIndex).map((a, i) => ({ ...a, orden: i + 1 }))
     setEtapas(prev => prev.map(e => e.id === etapaSeleccionada ? { ...e, actividades: nuevasActividades } : e))
     setGuardando(true)
-    await fetch(`/api/v1/viajes/${viajeId}/actividades/reordenar/`, {
+    await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/actividades/reordenar/`, {
       method: 'PATCH',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nuevasActividades.map(a => ({ id: a.id, orden: a.orden })))
     })
@@ -54,8 +55,9 @@ export function ConstructorItinerario({ etapasIniciales, viajeId }: ConstructorI
 
   async function agregarActividad(etapaId: string) {
     if (!nuevaActividad.trim()) return
-    const res = await fetch(`/api/v1/viajes/${viajeId}/actividades/`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/actividades/`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ etapa: etapaId, titulo: nuevaActividad, orden: 99 })
     })
@@ -67,14 +69,15 @@ export function ConstructorItinerario({ etapasIniciales, viajeId }: ConstructorI
   }
 
   async function eliminarActividad(etapaId: string, actId: string) {
-    await fetch(`/api/v1/viajes/${viajeId}/actividades/${actId}/`, { method: 'DELETE' })
+    await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/actividades/${actId}/`, { method: 'DELETE', credentials: 'include' })
     setEtapas(prev => prev.map(e => e.id === etapaId ? { ...e, actividades: e.actividades.filter(a => a.id !== actId) } : e))
   }
 
   async function agregarEtapa() {
     if (!nuevaEtapa.trim()) return
-    const res = await fetch(`/api/v1/viajes/${viajeId}/etapas/`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/etapas/`, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ titulo: nuevaEtapa, dia_numero: etapas.length + 1 })
     })
@@ -90,7 +93,7 @@ export function ConstructorItinerario({ etapasIniciales, viajeId }: ConstructorI
   return (
     <div>
       {guardando && <p className="text-xs text-blue-600 mb-2 text-right">Guardando orden...</p>}
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <DndContext id='itinerario-dnd' sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div className="space-y-2">
           {etapas.map(etapa => (
             <EtapaDia

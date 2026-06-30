@@ -13,7 +13,7 @@ class AlumnoInputSerializer(serializers.Serializer):
     dni = serializers.CharField(max_length=20)
     num_pasaporte = serializers.CharField(max_length=30, required=False, allow_blank=True)
     necesidades_especiales = serializers.CharField(required=False, allow_blank=True)
-    nombre_tutor_legal = serializers.CharField(max_length=200)
+    nombre_tutor_legal = serializers.CharField(max_length=200, required=False, allow_blank=True)
     telefono_emergencia = serializers.CharField(max_length=20)
     genero = serializers.CharField(max_length=20, required=False, allow_blank=True)
     colegio = serializers.CharField(max_length=200, required=False, allow_blank=True)
@@ -48,7 +48,7 @@ class InscripcionCreateSerializer(serializers.Serializer):
 
     def validate(self, data):
         viaje = data['viaje_id']
-        if viaje.estado != 'activo':
+        if viaje.estado != 'publicado':
             raise serializers.ValidationError('El viaje no esta activo.')
         inscritos = viaje.inscripciones.filter(estado__in=['pendiente', 'confirmado']).count()
         if inscritos >= viaje.cupo_maximo:
@@ -66,7 +66,7 @@ class InscripcionCreateSerializer(serializers.Serializer):
             'fecha_nacimiento': alumno_data['fecha_nacimiento'],
             'num_pasaporte': alumno_data.get('num_pasaporte', ''),
             'necesidades_especiales': alumno_data.get('necesidades_especiales', ''),
-            'nombre_tutor_legal': alumno_data['nombre_tutor_legal'],
+            'nombre_tutor_legal': alumno_data.get('nombre_tutor_legal') or padre_tutor.usuario.nombre_completo,
             'telefono_emergencia': alumno_data['telefono_emergencia'],
             'genero': alumno_data.get('genero', ''),
             'colegio': alumno_data.get('colegio', ''),
@@ -107,7 +107,7 @@ class InscripcionCreateSerializer(serializers.Serializer):
             viaje=viaje,
             padre_tutor=padre_tutor,
             precio_final=viaje.precio_total,
-            estado='pendiente',
+            estado='pre_inscrito',
             genero=alumno_data.get('genero', ''),
             colegio=alumno_data.get('colegio', ''),
             departamento=alumno_data.get('departamento', ''),

@@ -1,15 +1,28 @@
-﻿import { ConstructorItinerario } from '@/components/agente/ConstructorItinerario'
+import { ConstructorItinerario } from '@/components/agente/ConstructorItinerario'
 import Link from 'next/link'
+import { cookies } from 'next/headers'
 
 async function getItinerario(viajeId: string) {
-  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/viajes/${viajeId}/itinerario/`, { cache: 'no-store' })
+  const cookieStore = await cookies()
+  const token = cookieStore.get('access_token')?.value
+  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
+  const res = await fetch(`${gatewayUrl}/api/v1/viajes/${viajeId}/itinerario/`, {
+    cache: 'no-store',
+    headers: token ? { Cookie: `access_token=${token}` } : {}
+  })
   if (!res.ok) return []
   const data = await res.json()
   return data.etapas ?? []
 }
 
 async function getViaje(id: string) {
-  const res = await fetch(`${(process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)}/api/v1/viajes/${id}/`, { cache: 'no-store' })
+  const cookieStore = await cookies()
+  const token = cookieStore.get('access_token')?.value
+  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
+  const res = await fetch(`${gatewayUrl}/api/v1/viajes/${id}/`, {
+    cache: 'no-store',
+    headers: token ? { Cookie: `access_token=${token}` } : {}
+  })
   if (!res.ok) return null
   return res.json()
 }

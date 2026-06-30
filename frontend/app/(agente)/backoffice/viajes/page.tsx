@@ -17,6 +17,7 @@ async function getViajes() {
 
 const ESTADO_BADGE: Record<string, { variant: 'success' | 'warning' | 'info' | 'default', icon: string }> = {
   activo:    { variant: 'success', icon: '✓' },
+  publicado: { variant: 'success', icon: '✓' },
   borrador:  { variant: 'default', icon: '○' },
   cerrado:   { variant: 'warning', icon: '!' },
   archivado: { variant: 'info',    icon: '▣' },

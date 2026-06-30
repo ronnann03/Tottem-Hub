@@ -504,10 +504,21 @@ class ViajePublicoListView(generics.ListAPIView):
 
 
 class ViajePublicoDetailView(generics.RetrieveAPIView):
-    """Endpoint público para ver detalle de un viaje publicado (sin autenticación)."""
+    """Endpoint público para ver detalle de un viaje publicado (sin autenticación).
+    Acepta tanto slug como UUID en la URL."""
     serializer_class = ViajeSerializer
     permission_classes = [AllowAny]
-    lookup_field = 'slug'
+    lookup_url_kwarg = 'slug'
 
     def get_queryset(self):
         return Viaje.objects.filter(estado='publicado').select_related('agencia')
+
+    def get_object(self):
+        lookup_value = self.kwargs.get(self.lookup_url_kwarg)
+        queryset = self.get_queryset()
+        try:
+            import uuid
+            uuid.UUID(lookup_value)
+            return get_object_or_404(queryset, id=lookup_value)
+        except ValueError:
+            return get_object_or_404(queryset, slug=lookup_value)
