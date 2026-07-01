@@ -1,0 +1,42 @@
+TASK-019: Frontend — middleware.ts (auth guard + redirect por rol)
+TASK-020: Frontend — páginas de autenticación (login, registro, verificación)
+TASK-025: API viajes — CRUD + transiciones de estado
+TASK-030: API documentos requeridos
+TASK-031: Modelo LogAuditoria (inmutable)
+TASK-032: Modelos Alumno, PadreTutor e Inscripcion
+TASK-033: API inscripciones — POST (wizard) + GET
+TASK-034: Signal Inscripcion.CREATE → email bienvenida
+TASK-035: Modelo Pago + API POST (upload comprobante)
+TASK-036: API Pago — PATCH verificar/rechazar + signals
+TASK-037: Modelo DocumentoEntregado + API POST (upload)
+TASK-038: API Documento — PATCH validar/rechazar + signals
+TASK-039: Modelo Notificacion + API notificaciones
+TASK-040: Modelo Comunicado + API + task Celery envío masivo
+TASK-041: Celery tasks — recordatorios de pago (cadencia 30/15/7/3/0 días)
+TASK-042: Celery tasks — marcar cuotas vencidas + archivar viajes
+TASK-043: Celery task — alerta documentación incompleta
+TASK-044: Frontend — componentes transversales UI
+TASK-045: Frontend — landing pública /viajes/[slug]/
+TASK-046: Frontend — wizard de inscripción (3 pasos)
+TASK-047: Frontend — dashboard del padre
+TASK-048: Frontend — pantalla de pagos
+TASK-049: Frontend — pantalla de documentos
+TASK-050: Frontend — centro de notificaciones
+TASK-051: Frontend — portal alumno (solo lectura)
+TASK-052: Backoffice — layout agente + panel de viajes
+TASK-053: Backoffice — panel de inscritos con filtros
+TASK-054: Backoffice — verificación de pagos
+TASK-055: Backoffice — validación de documentos
+TASK-056: Backoffice — constructor de itinerario (drag & drop)
+TASK-057: Backoffice — gestión de grupos, hoteles y docs requeridos
+TASK-058: Backoffice — comunicados masivos
+TASK-059: Backend — Mecenas + MecenasInscripcion + API
+TASK-060: Frontend — portal mecenas
+TASK-061: Backend — chat in-app (Conversacion + Mensaje + API)
+TASK-062: Frontend — chat in-app
+TASK-063: Backend — exportaciones CSV/XLSX
+TASK-064: Backend — exportaciones PDF (informe estado + ficha inscripción)
+TASK-065: Frontend — UI de exportaciones en backoffice
+TASK-066: Frontend — WhatsApp link wa.me (Nivel 1)
+TASK-067: Backend — preferencias de notificación (modelo + API)
+TASK-068: Frontend — configuración de preferencias de notificación

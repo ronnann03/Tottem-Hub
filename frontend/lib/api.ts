@@ -5,7 +5,17 @@ export class ApiError extends Error {
   data: any;
 
   constructor(status: number, data: any) {
-    super(data.detail || data.error || 'API Error');
+    let msg = data.detail || data.error;
+    if (!msg && typeof data === 'object') {
+      // Try to find the first error string in the object values
+      const firstKey = Object.keys(data)[0];
+      if (firstKey && Array.isArray(data[firstKey])) {
+        msg = data[firstKey][0];
+      } else if (firstKey && typeof data[firstKey] === 'string') {
+        msg = data[firstKey];
+      }
+    }
+    super(msg || 'API Error');
     this.status = status;
     this.data = data;
   }

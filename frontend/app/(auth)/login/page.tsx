@@ -27,9 +27,31 @@ function LoginForm() {
       // Redirigir según el rol
       const role = result.rol;
       const callbackUrl = searchParams.get("callbackUrl");
+      const pendingViajeId = localStorage.getItem("pending_viaje_id");
 
       if (callbackUrl && callbackUrl.startsWith("/")) {
         router.push(callbackUrl);
+      } else if (pendingViajeId && (role === "padre" || role === "mecenas")) {
+        const payloadStr = localStorage.getItem(`pending_inscription_payload_${pendingViajeId}`);
+        if (payloadStr) {
+          try {
+            await fetchApi('/api/v1/inscripciones/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: payloadStr
+            });
+            // NOTA: NO borramos inscripcion_progreso_... para que la pantalla de éxito pueda leer el nombre del alumno
+            localStorage.removeItem(`pending_inscription_payload_${pendingViajeId}`);
+            localStorage.removeItem("pending_viaje_id");
+            router.push(`/app/inscribir/${pendingViajeId}?success=true`);
+            return;
+          } catch (e) {
+            console.error('Failed to submit pending inscription', e);
+            // Si falla, redirigimos de todas formas al dashboard
+          }
+        }
+        localStorage.removeItem("pending_viaje_id");
+        router.push(`/app/inscribir/${pendingViajeId}`);
       } else if (role === "agente") {
         router.push("/backoffice");
       } else if (role === "alumno") {
@@ -105,6 +127,15 @@ function LoginForm() {
           </button>
         </div>
       </form>
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-gray-600">
+          ¿No tienes cuenta?{" "}
+          <Link href={`/registro${searchParams.get('callbackUrl') ? `?callbackUrl=${searchParams.get('callbackUrl')}` : ''}`} className="font-medium text-primary hover:underline">
+            Regístrate aquí
+          </Link>
+        </p>
+      </div>
     </>
   );
 }
@@ -117,15 +148,6 @@ export default function LoginPage() {
       <Suspense fallback={<div className="text-center py-4">Cargando formulario...</div>}>
         <LoginForm />
       </Suspense>
-
-      <div className="mt-6 text-center">
-        <p className="text-sm text-gray-600">
-          ¿No tienes cuenta?{" "}
-          <Link href="/registro" className="font-medium text-primary hover:underline">
-            Regístrate aquí
-          </Link>
-        </p>
-      </div>
     </div>
   );
 }

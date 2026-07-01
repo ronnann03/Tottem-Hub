@@ -6,9 +6,10 @@ async function getItinerario(viajeId: string) {
   const cookieStore = await cookies()
   const token = cookieStore.get('access_token')?.value
   const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
+  const headers: Record<string, string> = token ? { Cookie: `access_token=${token}` } : {}
   const res = await fetch(`${gatewayUrl}/api/v1/viajes/${viajeId}/itinerario/`, {
     cache: 'no-store',
-    headers: token ? { Cookie: `access_token=${token}` } : {}
+    headers
   })
   if (!res.ok) return []
   const data = await res.json()
@@ -19,9 +20,10 @@ async function getViaje(id: string) {
   const cookieStore = await cookies()
   const token = cookieStore.get('access_token')?.value
   const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
+  const headers: Record<string, string> = token ? { Cookie: `access_token=${token}` } : {}
   const res = await fetch(`${gatewayUrl}/api/v1/viajes/${id}/`, {
     cache: 'no-store',
-    headers: token ? { Cookie: `access_token=${token}` } : {}
+    headers
   })
   if (!res.ok) return null
   return res.json()

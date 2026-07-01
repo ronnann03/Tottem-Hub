@@ -1,4 +1,4 @@
-﻿import { AlertCard } from '@/components/ui/AlertCard'
+import { AlertCard } from '@/components/ui/AlertCard'
 
 interface Alerta {
   tipo: 'warning' | 'error' | 'info'
@@ -14,10 +14,20 @@ interface AlertasPendientesProps {
 export function AlertasPendientes({ alertas }: AlertasPendientesProps) {
   if (alertas.length === 0) return null
   return (
-    <div className="space-y-2 mb-6">
-      {alertas.map((alerta, i) => (
-        <AlertCard key={i} tipo={alerta.tipo} titulo={alerta.titulo} mensaje={alerta.mensaje} href={alerta.href} />
-      ))}
+    <div className="mb-8">
+      <h2 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Alertas y Pendientes</h2>
+      <div className="space-y-3">
+        {alertas.map((alerta, i) => (
+          <AlertCard 
+            key={i} 
+            tipo={alerta.tipo} 
+            titulo={alerta.titulo} 
+            mensaje={alerta.mensaje} 
+            href={alerta.href} 
+            icon={alerta.tipo === 'error' ? '🔴' : alerta.tipo === 'warning' ? '🟡' : '🔵'}
+          />
+        ))}
+      </div>
     </div>
   )
 }

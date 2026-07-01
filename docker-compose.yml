@@ -1,4 +1,4 @@
-﻿services:
+services:
 
   # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   # INFRAESTRUCTURA
@@ -121,7 +121,7 @@
       PORT: "3001"
       BACKEND_URL: http://backend:8000
       REDIS_URL: redis://redis:6379
-      CORS_ORIGINS: http://localhost:3000
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3002,http://localhost:3001
       RATE_LIMIT_WINDOW_MS: "60000"
       RATE_LIMIT_MAX: "100"
       MAX_FILE_SIZE_BYTES: "10485760"

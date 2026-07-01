@@ -1,9 +1,9 @@
-﻿import { HeroSection } from '@/components/public/HeroSection'
+import { HeroSection } from '@/components/public/HeroSection'
 import { ItinerarioResumen } from '@/components/public/ItinerarioResumen'
 import Link from 'next/link'
 
 async function getViaje(slug: string) {
-  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || (process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL)
+  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://127.0.0.1:3001'
   const res = await fetch(`${gatewayUrl}/api/v1/viajes/publico/${slug}/`, { cache: 'no-store' })
   if (!res.ok) return null
   const data = await res.json()
@@ -29,7 +29,7 @@ export default async function ViajePublicoPage({ params }: { params: Promise<{ s
         cupoMaximo={viaje.cupo_maximo}
         cupoDisponible={cupoDisponible}
         imagenUrl={viaje.imagen_url}
-        inscribirHref="/registro"
+        inscribirHref={`/app/inscribir/${viaje.id}`}
       />
 
       <section className="py-8 px-6 bg-gray-50 border-b">
@@ -54,7 +54,7 @@ export default async function ViajePublicoPage({ params }: { params: Promise<{ s
       <section className="py-16 px-6 bg-blue-800 text-white text-center">
         <h2 className="text-3xl font-bold mb-4">Preparados para el despegue?</h2>
         <p className="text-blue-200 mb-8">Quedan {cupoDisponible} plazas disponibles</p>
-        <Link href="/registro" className="bg-yellow-400 text-gray-900 font-bold px-10 py-4 rounded-lg hover:bg-yellow-300 transition-colors text-lg">
+        <Link href={`/app/inscribir/${viaje.id}`} className="bg-yellow-400 text-gray-900 font-bold px-10 py-4 rounded-lg hover:bg-yellow-300 transition-colors text-lg">
           INSCRIBIR A MI HIJ@
         </Link>
       </section>

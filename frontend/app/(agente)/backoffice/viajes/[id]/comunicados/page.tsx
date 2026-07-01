@@ -1,5 +1,5 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { FormularioComunicado } from '@/components/agente/FormularioComunicado'
 
@@ -12,11 +12,12 @@ interface Comunicado {
 }
 
 export default function ComunicadosPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const [comunicados, setComunicados] = useState<Comunicado[]>([])
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${params.id}/comunicados/`).then(r => r.json()).then(data => setComunicados(Array.isArray(data) ? data : data.results ?? []))
-  }, [params.id])
+    fetch(`/api/v1/viajes/${id}/comunicados/`).then(r => r.json()).then(data => setComunicados(Array.isArray(data) ? data : data.results ?? []))
+  }, [id])
 
   function handleEnviado(comunicado: Comunicado) {
     setComunicados(prev => [comunicado, ...prev])
@@ -25,11 +26,11 @@ export default function ComunicadosPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="p-8">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link href={`/backoffice/viajes/${params.id}`} className="hover:underline">Viaje</Link>
+        <Link href={`/backoffice/viajes/${id}`} className="hover:underline">Viaje</Link>
         <span>›</span><span>Comunicados</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Comunicados masivos</h1>
-      <FormularioComunicado viajeId={params.id} onEnviado={handleEnviado} />
+      <FormularioComunicado viajeId={id} onEnviado={handleEnviado} />
       <div>
         <h2 className="font-semibold text-gray-900 mb-3">Comunicados anteriores</h2>
         {comunicados.length === 0 ? (

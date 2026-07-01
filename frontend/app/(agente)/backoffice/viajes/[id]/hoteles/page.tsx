@@ -1,38 +1,39 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 
 interface Hotel { id: string; nombre: string; estrellas: number; web_url?: string; maps_url?: string }
 
 export default function HotelesPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: viajeId } = use(params)
   const [hoteles, setHoteles] = useState<Hotel[]>([])
   const [form, setForm] = useState({ nombre: '', estrellas: '3', web_url: '', maps_url: '' })
   const [creando, setCreando] = useState(false)
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${params.id}/hoteles/`).then(r => r.json()).then(setHoteles)
-  }, [params.id])
+    fetch(`/api/v1/viajes/${viajeId}/hoteles/`).then(r => r.json()).then(setHoteles)
+  }, [viajeId])
 
   async function crearHotel() {
     setCreando(true)
-    const res = await fetch(`/api/v1/viajes/${params.id}/hoteles/`, {
+    const res = await fetch(`/api/v1/viajes/${viajeId}/hoteles/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, estrellas: Number(form.estrellas), viaje: params.id })
+      body: JSON.stringify({ ...form, estrellas: Number(form.estrellas), viaje: viajeId })
     })
     if (res.ok) { const h = await res.json(); setHoteles(prev => [...prev, h]); setForm({ nombre: '', estrellas: '3', web_url: '', maps_url: '' }); setMostrarForm(false) }
     setCreando(false)
   }
 
   async function eliminarHotel(id: string) {
-    await fetch(`/api/v1/viajes/${params.id}/hoteles/${id}/`, { method: 'DELETE' })
+    await fetch(`/api/v1/viajes/${viajeId}/hoteles/${id}/`, { method: 'DELETE' })
     setHoteles(prev => prev.filter(h => h.id !== id))
   }
 
   return (
     <div className="p-8">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link href={`/backoffice/viajes/${params.id}`} className="hover:underline">Viaje</Link>
+        <Link href={`/backoffice/viajes/${viajeId}`} className="hover:underline">Viaje</Link>
         <span>›</span><span>Hoteles</span>
       </div>
       <div className="flex items-center justify-between mb-6">

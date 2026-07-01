@@ -1,11 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { WizardProgress } from '@/components/forms/WizardProgress'
 import { Step1 } from './steps/Step1'
 import { Step2 } from './steps/Step2'
 import { Step3 } from './steps/Step3'
-import { fetchApi } from '@/lib/api'
+import { fetchApi, ApiError } from '@/lib/api'
 
 const LABELS = ['Datos basicos', 'Centro educativo', 'Salud y T&C']
 
@@ -26,11 +26,12 @@ const ALLERGEN_MAP: Record<string, string> = {
   'moluscos': 'alergeno_moluscos'
 }
 
-export default function InscribirPage() {
+function InscribirForm() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const viaje_id = params.viaje_id as string
-  const [paso, setPaso] = useState(1)
+  const [paso, setPaso] = useState(searchParams.get('success') === 'true' ? 4 : 1)
   const [data, setData] = useState<Record<string, string | boolean>>({})
   const [viaje, setViaje] = useState<any>(null)
   const [enviando, setEnviando] = useState(false)
@@ -170,33 +171,35 @@ export default function InscribirPage() {
       alergenosPayload[keyInPayload] = !!data[keyInState]
     })
 
+    const payload = {
+      viaje_id: viaje_id,
+      alumno: {
+        nombre: data.nombre,
+        apellidos: data.apellidos,
+        dni: data.dni,
+        fecha_nacimiento: data.fecha_nacimiento,
+        genero: data.genero,
+        colegio: data.colegio,
+        departamento: data.departamento,
+        nivel_educativo: data.nivel,
+        grado: data.grado,
+        necesidades_especiales: data.necesidades_especiales ?? '',
+        nombre_tutor_legal: '',
+        telefono_emergencia: data.telefono_emergencia ?? '',
+        ...alergenosPayload
+      }
+    }
+
     try {
       await fetchApi('/api/v1/inscripciones/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          viaje_id: viaje_id,
-          alumno: {
-            nombre: data.nombre,
-            apellidos: data.apellidos,
-            dni: data.dni,
-            fecha_nacimiento: data.fecha_nacimiento,
-            genero: data.genero,
-            colegio: data.colegio,
-            departamento: data.departamento,
-            nivel_educativo: data.nivel,
-            grado: data.grado,
-            necesidades_especiales: data.necesidades_especiales ?? '',
-            nombre_tutor_legal: '',
-            telefono_emergencia: data.telefono_emergencia ?? '',
-            ...alergenosPayload
-          }
-        })
+        body: JSON.stringify(payload)
       })
 
-      // Éxito: limpiar localStorage
-      localStorage.removeItem(`inscripcion_progreso_${viaje_id}`)
-      router.push('/app')
+      // Éxito: NO limpiar localStorage de progreso aún para que la vista de éxito pueda leerlo.
+      // Solo limpiamos si el usuario hace clic en "Volver al inicio"
+      setPaso(4)
     } catch (err: any) {
       setError(err.message || 'Error al enviar la inscripción. Intenta de nuevo.')
     } finally {
@@ -282,35 +285,88 @@ export default function InscribirPage() {
           </div>
         )}
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Inscripción al viaje</h1>
-        <WizardProgress pasoActual={paso} totalPasos={3} labels={LABELS} />
-        
-        <div className="mt-6">
-          {paso === 1 && <Step1 data={data as Record<string, string>} onChange={handleChange} />}
-          {paso === 2 && <Step2 data={data as Record<string, string>} onChange={handleChange} />}
-          {paso === 3 && <Step3 data={data} onChange={handleChange} />}
-        </div>
-        
-        {error && <p className="text-red-600 text-sm mt-4 font-medium">{error}</p>}
-        
-        <div className="flex justify-between mt-8">
-          {paso > 1 ? (
-            <button onClick={anterior} className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-              Anterior
-            </button>
-          ) : <div />}
-          
-          {paso < 3 ? (
-            <button onClick={siguiente} className="px-6 py-2 bg-blue-800 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-              Siguiente
-            </button>
-          ) : (
-            <button onClick={handleSubmit} disabled={enviando} className="px-6 py-2 bg-yellow-400 text-gray-900 rounded-lg text-sm font-bold hover:bg-yellow-300 disabled:opacity-50 transition-colors">
-              {enviando ? 'Enviando...' : 'Confirmar inscripción'}
-            </button>
-          )}
-        </div>
+        {paso < 4 && (
+          <>
+            <h1 className="text-2xl font-bold text-gray-900 mb-6">Registrando tu hijo/a</h1>
+            <WizardProgress pasoActual={paso} totalPasos={3} labels={LABELS} />
+            
+            <div className="mt-6">
+              {paso === 1 && <Step1 data={data as Record<string, string>} onChange={handleChange} />}
+              {paso === 2 && <Step2 data={data as Record<string, string>} onChange={handleChange} />}
+              {paso === 3 && <Step3 data={data} onChange={handleChange} />}
+            </div>
+            
+            {error && <p className="text-red-600 text-sm mt-4 font-medium">{error}</p>}
+            
+            <div className="flex justify-between mt-8">
+              {paso > 1 ? (
+                <button onClick={anterior} className="px-6 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                  Anterior
+                </button>
+              ) : <div />}
+              
+              {paso < 3 ? (
+                <button onClick={siguiente} className="px-6 py-2 bg-blue-800 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                  Siguiente
+                </button>
+              ) : (
+                <button onClick={handleSubmit} disabled={enviando} className="px-6 py-2 bg-yellow-400 text-gray-900 rounded-lg text-sm font-bold hover:bg-yellow-300 disabled:opacity-50 transition-colors">
+                  {enviando ? 'Enviando...' : 'Confirmar inscripción'}
+                </button>
+              )}
+            </div>
+          </>
+        )}
+
+        {paso === 4 && (
+          <div className="flex flex-col items-center justify-center text-center py-6 px-4 animate-fade-in">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-sm">
+              <span className="material-symbols-outlined text-emerald-500 text-4xl font-bold">check</span>
+            </div>
+            <h1 className="text-3xl font-bold text-blue-800 mb-4 tracking-tight">¡Inscripción completada con éxito!</h1>
+            <p className="text-gray-700 mb-8 max-w-sm">
+              {data.nombre} {data.apellidos} ha sido registrado correctamente.
+              Ahora puedes proceder a gestionar su viaje desde el panel principal.
+            </p>
+
+            <div className="w-full bg-gray-50 border border-gray-200 rounded-xl p-6 text-left mb-8 space-y-2 relative overflow-hidden">
+              <p className="text-sm text-gray-800"><span className="font-bold text-gray-900">Alumno:</span> {data.nombre} {data.apellidos}</p>
+              <p className="text-sm text-gray-800"><span className="font-bold text-gray-900">Centro:</span> {data.colegio || (viaje?.colegio)}</p>
+              <div className="pt-3">
+                <button className="text-sm text-blue-700 font-medium hover:text-blue-800 hover:underline flex items-center gap-1">
+                  Descargar justificante de inscripción (PDF)
+                </button>
+              </div>
+            </div>
+
+            <div className="w-full space-y-4">
+              <button 
+                onClick={() => {
+                  localStorage.removeItem(`inscripcion_progreso_${viaje_id}`)
+                  router.push('/app')
+                }}
+                className="w-full py-3.5 bg-blue-700 text-white rounded-lg text-base font-semibold hover:bg-blue-800 shadow-md transition-all hover:-translate-y-0.5"
+              >
+                Volver al Inicio
+              </button>
+              
+              <button className="w-full py-2 text-sm text-blue-700 font-medium hover:text-blue-800 hover:underline">
+                Configurar preferencias de habitación
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
+  )
+}
+
+import { Suspense } from 'react'
+
+export default function InscribirPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Cargando...</div>}>
+      <InscribirForm />
+    </Suspense>
   )
 }

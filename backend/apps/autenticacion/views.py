@@ -72,12 +72,14 @@ class RegistroAPIView(APIView):
         serializer = RegistroSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         usuario = serializer.save()
+        
+        # Bypass de verificación de email: la cuenta nace verificada
+        usuario.email_verificado = True
+        usuario.save(update_fields=["email_verificado"])
 
-        self._enviar_verificacion(usuario)
-
-        logger.info("Registro exitoso: %s (rol=%s)", usuario.email, usuario.rol)
+        logger.info("Registro exitoso y auto-verificado: %s (rol=%s)", usuario.email, usuario.rol)
         return Response(
-            {"mensaje": "Revisa tu email para activar tu cuenta"},
+            {"mensaje": "Cuenta creada exitosamente."},
             status=status.HTTP_201_CREATED,
         )
 

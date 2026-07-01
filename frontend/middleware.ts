@@ -10,7 +10,7 @@ function getPathForRole(role: string): string {
   return '/login';
 }
 
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Obtener el token de la cookie httpOnly
@@ -39,7 +39,8 @@ export function proxy(request: NextRequest) {
   // 3. Evaluar permisos por área protegida
   const isBackoffice = pathname.startsWith('/backoffice');
   const isAlumnoApp = pathname.startsWith('/app/alumno');
-  const isPadreApp = pathname.startsWith('/app') && !isAlumnoApp; // Todo bajo /app que no sea alumno
+  // Todas las rutas bajo /app son para padres autenticados (excepto /app/alumno)
+  const isPadreApp = pathname.startsWith('/app') && !isAlumnoApp;
 
   // Si no intenta acceder a rutas protegidas, dejar pasar
   if (!isBackoffice && !isAlumnoApp && !isPadreApp) {

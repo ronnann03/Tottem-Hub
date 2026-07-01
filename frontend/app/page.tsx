@@ -1,11 +1,32 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { fetchApi } from "@/lib/api";
 
 export default function RootPage() {
   const [activeTab, setActiveTab] = useState("Itinerario");
   const tabs = ["Itinerario", "Pagos", "Alojamiento", "Presupuesto"];
+  const router = useRouter();
+  const [viajeId, setViajeId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchApi('/api/v1/viajes/publico/')
+      .then(res => {
+        if (res && res.results && res.results.length > 0) {
+          setViajeId(res.results[0].id);
+        } else if (res && res.length > 0) { // Fallback just in case pagination is disabled
+          setViajeId(res[0].id);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  const handleInscribirse = () => {
+    if (!viajeId) return;
+    router.push(`/app/inscribir/${viajeId}`);
+  };
 
   return (
     <>
@@ -47,10 +68,10 @@ export default function RootPage() {
           </nav>
           {/* Actions */}
           <div className="flex items-center gap-3">
-            <button className="cursor-pointer bg-primary text-white font-label-md py-2.5 px-6 rounded-full hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 transform hover:-translate-y-0.5 hidden sm:block">
+            <button onClick={handleInscribirse} className="cursor-pointer bg-primary text-white font-label-md py-2.5 px-6 rounded-full hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/30 transition-all duration-300 transform hover:-translate-y-0.5 hidden sm:block">
               Inscribirse
             </button>
-            <button className="cursor-pointer text-on-surface-variant hover:text-primary bg-surface-container-low hover:bg-surface-container-highest transition-all duration-300 flex items-center justify-center w-10 h-10 rounded-full">
+            <button onClick={() => router.push('/login')} className="cursor-pointer text-white bg-primary hover:bg-primary/90 shadow-md shadow-primary/20 transition-all duration-300 flex items-center justify-center w-10 h-10 rounded-full">
               <span className="material-symbols-outlined">account_circle</span>
             </button>
           </div>
@@ -81,7 +102,7 @@ export default function RootPage() {
           </p>
           
           <div className="mt-4 flex flex-col sm:flex-row gap-4 items-center">
-            <button className="cursor-pointer bg-primary text-white font-label-md py-4 px-10 rounded-full shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-105 transition-all duration-300 text-lg font-bold flex items-center gap-2">
+            <button onClick={handleInscribirse} className="cursor-pointer bg-primary text-white font-label-md py-4 px-10 rounded-full shadow-xl shadow-primary/20 hover:bg-primary/90 hover:scale-105 transition-all duration-300 text-lg font-bold flex items-center gap-2">
               Inscribir a mi hij@
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
@@ -296,8 +317,8 @@ export default function RootPage() {
             <p className="font-body-md text-body-md text-surface-container-highest/90 text-sm">
               Apúntate a nuestro viaje y comienza a disfrutar de todas nuestras ventajas.
             </p>
-            <button className="cursor-pointer mt-2 bg-primary-container text-on-primary-container hover:bg-primary-fixed hover:text-on-primary-fixed-variant transition-colors duration-200 font-label-md text-label-md font-bold py-2.5 px-6 rounded-full w-full shadow-sm">
-              Inscribirse en viaje
+            <button onClick={handleInscribirse} className="cursor-pointer mt-2 bg-primary-container text-on-primary-container hover:bg-primary-fixed hover:text-on-primary-fixed-variant transition-colors duration-200 font-label-md text-label-md font-bold py-2.5 px-6 rounded-full w-full shadow-sm">
+              Inscribir a mi hij@
             </button>
           </div>
 

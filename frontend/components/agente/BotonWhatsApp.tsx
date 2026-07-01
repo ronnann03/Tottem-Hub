@@ -1,4 +1,4 @@
-﻿import { generarLinkWhatsApp } from '@/lib/whatsapp'
+import { generarLinkWhatsApp } from '@/lib/whatsapp'
 
 interface BotonWhatsAppProps {
   telefono: string
@@ -10,7 +10,7 @@ interface BotonWhatsAppProps {
 export function BotonWhatsApp({ telefono, mensaje, label = 'WhatsApp', className = '' }: BotonWhatsAppProps) {
   const href = generarLinkWhatsApp(telefono, mensaje)
   return (
-    
+    <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"

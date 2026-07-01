@@ -1,12 +1,13 @@
-﻿import Link from 'next/link'
+import Link from 'next/link'
 
-export default function ExportarPage({ params }: { params: Promise<{ id: string }> }) {
-  const base = `/api/v1/viajes/${params.id}`
+export default async function ExportarPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const base = `/api/v1/viajes/${id}`
 
   return (
     <div className="p-8">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link href={`/backoffice/viajes/${params.id}`} className="hover:underline">Viaje</Link>
+        <Link href={`/backoffice/viajes/${id}`} className="hover:underline">Viaje</Link>
         <span>›</span><span>Exportar</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Exportaciones</h1>

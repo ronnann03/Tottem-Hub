@@ -4,8 +4,7 @@ async function getDashboardData() {
   const cookieStore = await cookies()
   const token = cookieStore.get('access_token')?.value
   const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
-  const headers = token ? { Cookie: `access_token=${token}` } : {}
-
+  const headers: Record<string, string> = token ? { Cookie: `access_token=${token}` } : {}
   const [viajesRes, pagosRes] = await Promise.all([
     fetch(`${gatewayUrl}/api/v1/viajes/`, { cache: 'no-store', headers }),
     fetch(`${gatewayUrl}/api/v1/pagos/`, { cache: 'no-store', headers }),

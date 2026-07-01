@@ -1,22 +1,23 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 
 interface Grupo { id: string; nombre: string; alumnos: any[] }
 
 export default function GruposPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: viajeId } = use(params)
   const [grupos, setGrupos] = useState<Grupo[]>([])
   const [nuevoGrupo, setNuevoGrupo] = useState('')
   const [creando, setCreando] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${params.id}/grupos/`).then(r => r.json()).then(setGrupos)
-  }, [params.id])
+    fetch(`/api/v1/viajes/${viajeId}/grupos/`).then(r => r.json()).then(setGrupos)
+  }, [viajeId])
 
   async function crearGrupo() {
     if (!nuevoGrupo.trim()) return
     setCreando(true)
-    const res = await fetch(`/api/v1/viajes/${params.id}/grupos/`, {
+    const res = await fetch(`/api/v1/viajes/${viajeId}/grupos/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre: nuevoGrupo })
     })
@@ -31,7 +32,7 @@ export default function GruposPage({ params }: { params: Promise<{ id: string }>
   return (
     <div className="p-8">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link href={`/backoffice/viajes/${params.id}`} className="hover:underline">Viaje</Link>
+        <Link href={`/backoffice/viajes/${viajeId}`} className="hover:underline">Viaje</Link>
         <span>›</span><span>Grupos</span>
       </div>
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Gestion de grupos</h1>

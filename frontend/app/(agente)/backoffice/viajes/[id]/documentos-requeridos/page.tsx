@@ -1,35 +1,36 @@
-﻿'use client'
-import { useState, useEffect } from 'react'
+'use client'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 
 interface DocRequerido { id: string; nombre: string; obligatorio: boolean; formatos_permitidos: string }
 
 export default function DocumentosRequeridosPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: viajeId } = use(params)
   const [docs, setDocs] = useState<DocRequerido[]>([])
   const [form, setForm] = useState({ nombre: '', obligatorio: true, formatos_permitidos: 'pdf,jpg,png' })
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${params.id}/documentos-requeridos/`).then(r => r.json()).then(setDocs)
-  }, [params.id])
+    fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/`).then(r => r.json()).then(setDocs)
+  }, [viajeId])
 
   async function crearDoc() {
-    const res = await fetch(`/api/v1/viajes/${params.id}/documentos-requeridos/`, {
+    const res = await fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, viaje: params.id })
+      body: JSON.stringify({ ...form, viaje: viajeId })
     })
     if (res.ok) { const d = await res.json(); setDocs(prev => [...prev, d]); setForm({ nombre: '', obligatorio: true, formatos_permitidos: 'pdf,jpg,png' }); setMostrarForm(false) }
   }
 
   async function eliminarDoc(id: string) {
-    await fetch(`/api/v1/viajes/${params.id}/documentos-requeridos/${id}/`, { method: 'DELETE' })
+    await fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/${id}/`, { method: 'DELETE' })
     setDocs(prev => prev.filter(d => d.id !== id))
   }
 
   return (
     <div className="p-8">
       <div className="flex items-center gap-2 text-sm text-gray-500 mb-1">
-        <Link href={`/backoffice/viajes/${params.id}`} className="hover:underline">Viaje</Link>
+        <Link href={`/backoffice/viajes/${viajeId}`} className="hover:underline">Viaje</Link>
         <span>›</span><span>Documentos requeridos</span>
       </div>
       <div className="flex items-center justify-between mb-6">

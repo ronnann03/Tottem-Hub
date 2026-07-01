@@ -148,7 +148,7 @@ class ViajeResumenSerializer(serializers.ModelSerializer):
 class AlumnoResumenSerializer(serializers.ModelSerializer):
     class Meta:
         model = Alumno
-        fields = ['nombre', 'apellidos']
+        fields = ['id', 'nombre', 'apellidos']
 
 
 class InscripcionDetalleSerializer(serializers.ModelSerializer):
@@ -160,6 +160,7 @@ class InscripcionDetalleSerializer(serializers.ModelSerializer):
     pagos_resumen = serializers.SerializerMethodField()
     documentos_resumen = serializers.SerializerMethodField()
     hotel_asignado = serializers.SerializerMethodField()
+    alergias = serializers.SerializerMethodField()
 
     class Meta:
         model = Inscripcion
@@ -167,6 +168,7 @@ class InscripcionDetalleSerializer(serializers.ModelSerializer):
             'id', 'estado', 'precio_final', 'saldo_pendiente',
             'porcentaje_pagado', 'total_pagado', 'viaje', 'alumno',
             'pagos_resumen', 'documentos_resumen', 'hotel_asignado',
+            'colegio', 'nivel_educativo', 'grado', 'alergias'
         ]
 
     def get_pagos_resumen(self, obj):
@@ -185,3 +187,24 @@ class InscripcionDetalleSerializer(serializers.ModelSerializer):
         if not hotel:
             return None
         return {'nombre': hotel.nombre, 'maps_url': hotel.maps_url}
+
+    def get_alergias(self, obj):
+        alergias_list = []
+        if obj.alergeno_gluten: alergias_list.append('Gluten')
+        if obj.alergeno_crustaceos: alergias_list.append('Crustáceos')
+        if obj.alergeno_huevos: alergias_list.append('Huevos')
+        if obj.alergeno_pescado: alergias_list.append('Pescado')
+        if obj.alergeno_cacahuetes: alergias_list.append('Cacahuetes')
+        if obj.alergeno_soja: alergias_list.append('Soja')
+        if obj.alergeno_lacteos: alergias_list.append('Lácteos')
+        if obj.alergeno_frutos_cascara: alergias_list.append('Frutos de cáscara')
+        if obj.alergeno_apio: alergias_list.append('Apio')
+        if obj.alergeno_mostaza: alergias_list.append('Mostaza')
+        if obj.alergeno_sesamo: alergias_list.append('Sésamo')
+        if obj.alergeno_sulfitos: alergias_list.append('Sulfitos')
+        if obj.alergeno_altramuces: alergias_list.append('Altramuces')
+        if obj.alergeno_moluscos: alergias_list.append('Moluscos')
+        
+        if not alergias_list:
+            return ['sin especificar']
+        return alergias_list

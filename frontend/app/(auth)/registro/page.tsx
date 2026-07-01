@@ -1,13 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchApi, ApiError } from "@/lib/api";
 import Link from "next/link";
 
-export default function RegisterPage() {
+import { Suspense } from "react";
+
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
+  useEffect(() => {
+    const viajeId = searchParams.get('viaje_id');
+    if (viajeId) {
+      localStorage.setItem('pending_viaje_id', viajeId);
+    }
+  }, [searchParams]);
+
   const [formData, setFormData] = useState({
     nombre: "",
     apellidos: "",
@@ -51,43 +61,62 @@ export default function RegisterPage() {
         body: JSON.stringify(payload),
       });
 
-      setSuccess(true);
-      // Opcional: Redirigir al login después de un tiempo
-      // setTimeout(() => router.push("/login"), 3000);
+      // Auto-login inmediato
+      const loginResult = await fetchApi("/api/v1/auth/login/", {
+        method: "POST",
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+
+      // Redirigir según el rol y callbackUrl
+      const role = loginResult.rol;
+      const callbackUrl = searchParams.get("callbackUrl");
+      const pendingViajeId = localStorage.getItem("pending_viaje_id");
+
+      if (callbackUrl && callbackUrl.startsWith("/")) {
+        router.push(callbackUrl);
+      } else if (pendingViajeId && (role === "padre" || role === "mecenas")) {
+        // En caso de que estemos a mitad de una inscripción
+        router.push(`/app/inscribir/${pendingViajeId}`);
+      } else if (role === "agente") {
+        router.push("/backoffice");
+      } else if (role === "alumno") {
+        router.push("/app/alumno");
+      } else if (role === "padre" || role === "mecenas") {
+        router.push("/app");
+      } else {
+        router.push("/");
+      }
     } catch (err: any) {
-      if (err instanceof ApiError) {
-        if (err.status === 400 && err.data.email) {
+      // Manejar la respuesta estructurada de DRF
+      const data = err?.data;
+      if (data && typeof data === 'object') {
+        if (data.email) {
           setError("Este email ya está en uso.");
+        } else if (data.password) {
+          setError(`Contraseña: ${data.password[0]}`);
+        } else if (data.nombre) {
+          setError(`Nombre: ${data.nombre[0]}`);
+        } else if (data.apellidos) {
+          setError(`Apellidos: ${data.apellidos[0]}`);
         } else {
-          setError(err.message || "Error al crear la cuenta. Verifica tus datos.");
+          // Extraer cualquier otro error de campo
+          const firstKey = Object.keys(data)[0];
+          if (firstKey && Array.isArray(data[firstKey])) {
+            setError(data[firstKey][0]);
+          } else {
+            setError(err.message || "Error al crear la cuenta. Verifica tus datos.");
+          }
         }
       } else {
-        setError("Error de red. Inténtalo de nuevo.");
+        setError(err?.message || "Error de red. Inténtalo de nuevo.");
       }
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="text-center">
-        <h2 className="text-2xl font-bold mb-4 text-gray-900">¡Registro Exitoso!</h2>
-        <p className="text-gray-600 mb-6">
-          Revisa tu email para activar tu cuenta antes de iniciar sesión.
-        </p>
-        <Link
-          href="/login"
-          className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-opacity-90"
-        >
-          Ir al Login
-        </Link>
-      </div>
-    );
-  }
-
   return (
-    <div>
+    <>
       <h2 className="text-2xl font-bold mb-6 text-gray-900 text-center">Crear Cuenta</h2>
       
       {error && (
@@ -205,11 +234,21 @@ export default function RegisterPage() {
       <div className="mt-6 text-center">
         <p className="text-sm text-gray-600">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="font-medium text-primary hover:underline">
+          <Link href={`/login${searchParams.get('callbackUrl') ? `?callbackUrl=${searchParams.get('callbackUrl')}` : ''}`} className="font-medium text-primary hover:underline">
             Inicia sesión
           </Link>
         </p>
       </div>
+    </>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <div>
+      <Suspense fallback={<div className="text-center py-4">Cargando formulario...</div>}>
+        <RegisterForm />
+      </Suspense>
     </div>
   );
 }
