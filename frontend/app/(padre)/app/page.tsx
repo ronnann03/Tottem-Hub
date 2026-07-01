@@ -8,7 +8,7 @@ async function getInscripciones() {
   const cookieStore = await cookies()
   const token = cookieStore.get('access_token')?.value
   
-  const gatewayUrl = 'http://127.0.0.1:3001'
+  const gatewayUrl = process.env.NEXT_PUBLIC_GATEWAY_INTERNAL_URL || process.env.NEXT_PUBLIC_GATEWAY_URL
   const headers: Record<string, string> = token ? { Cookie: `access_token=${token}` } : {}
 
   try {
