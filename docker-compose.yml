@@ -148,6 +148,7 @@ services:
     environment:
       NEXT_PUBLIC_GATEWAY_URL: http://localhost:3001
       NEXT_PUBLIC_GATEWAY_INTERNAL_URL: http://gateway:3001
+      NODE_OPTIONS: --max-old-space-size=4096
     ports:
       - "3000:3000"
     depends_on:
