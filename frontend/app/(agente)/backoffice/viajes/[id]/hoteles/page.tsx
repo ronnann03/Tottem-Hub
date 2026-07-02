@@ -12,12 +12,12 @@ export default function HotelesPage({ params }: { params: Promise<{ id: string }
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${viajeId}/hoteles/`).then(r => r.json()).then(setHoteles)
+    fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/hoteles/`), { credentials: 'include' }).then(r => r.json()).then(setHoteles)
   }, [viajeId])
 
   async function crearHotel() {
     setCreando(true)
-    const res = await fetch(`/api/v1/viajes/${viajeId}/hoteles/`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/hoteles/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, estrellas: Number(form.estrellas), viaje: viajeId })
     })
@@ -26,7 +26,7 @@ export default function HotelesPage({ params }: { params: Promise<{ id: string }
   }
 
   async function eliminarHotel(id: string) {
-    await fetch(`/api/v1/viajes/${viajeId}/hoteles/${id}/`, { method: 'DELETE' })
+    await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/hoteles/${id}/`, { method: 'DELETE', credentials: 'include' })
     setHoteles(prev => prev.filter(h => h.id !== id))
   }
 

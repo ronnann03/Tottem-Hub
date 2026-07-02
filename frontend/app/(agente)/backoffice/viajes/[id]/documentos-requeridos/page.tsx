@@ -11,11 +11,11 @@ export default function DocumentosRequeridosPage({ params }: { params: Promise<{
   const [mostrarForm, setMostrarForm] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/`).then(r => r.json()).then(setDocs)
+    fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/documentos-requeridos/`), { credentials: 'include' }).then(r => r.json()).then(setDocs)
   }, [viajeId])
 
   async function crearDoc() {
-    const res = await fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/documentos-requeridos/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, viaje: viajeId })
     })
@@ -23,7 +23,7 @@ export default function DocumentosRequeridosPage({ params }: { params: Promise<{
   }
 
   async function eliminarDoc(id: string) {
-    await fetch(`/api/v1/viajes/${viajeId}/documentos-requeridos/${id}/`, { method: 'DELETE' })
+    await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/documentos-requeridos/${id}/`, { method: 'DELETE', credentials: 'include' })
     setDocs(prev => prev.filter(d => d.id !== id))
   }
 

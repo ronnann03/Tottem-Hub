@@ -11,13 +11,13 @@ export default function GruposPage({ params }: { params: Promise<{ id: string }>
   const [creando, setCreando] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/v1/viajes/${viajeId}/grupos/`).then(r => r.json()).then(setGrupos)
+    fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/grupos/`), { credentials: 'include' }).then(r => r.json()).then(setGrupos)
   }, [viajeId])
 
   async function crearGrupo() {
     if (!nuevoGrupo.trim()) return
     setCreando(true)
-    const res = await fetch(`/api/v1/viajes/${viajeId}/grupos/`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/v1/viajes/${viajeId}/grupos/`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre: nuevoGrupo })
     })
